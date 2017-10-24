@@ -1,14 +1,32 @@
+/*
+ *   libHMG - Individual based model of the a bacterial population
+ *   Copyright (C) 2017  Melchior du Lac
+ *
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation; either version 3 of the License, or
+ *   (at your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program; if not, write to the Free Software Foundation,
+ *   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
+ */
+
 /**
-* @file model.c
-*
-* Model file with all the methods that initiate and run the model.
-*
-* @version 1.0
-* @author Melchior du Lac
-*
-* 26/10/16
-	-> replaced the exit terms with the standard macro of EXIT_FAILURE and EXIT_SUCCESS
-*/
+ * @file model.c
+ *
+ * Model file with all the methods that initiate and run the model.
+ * @version 1.0
+ * @author Melchior du Lac
+ *
+ * 26/10/16
+ * -> replaced the exit terms with the standard macro of EXIT_FAILURE and EXIT_SUCCESS
+ */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -24,7 +42,8 @@
 
 #include "inputModel.h" //<-- tmp
 
-FILE *f;
+
+//FILE *f; <---- tmp need to find a better way to output this instead of hardcoding it
 
 //#################################################################################
 //################################## ORGANISE ####################################
@@ -80,8 +99,7 @@ int organiseCellArray(Model * model)
 /**
 * @brief Initiate a model object and all the downstream structures and cellArray.
 *
-* Initiate a model object and all the downstream structures and cellArray. This includes all the dynamic memory allocation that is only freed when cleanup function is called
-* Initiate and return an empty model and seed the random start 
+* Initiate a model object and all the downstream structures and cellArray. This includes all the dynamic memory allocation that is only freed when cleanModel() function is called. Initiate and return a model and seed the random start 
 *
 * @param maxCells Maximal number of cells that simulator may have
 * @return Model object
@@ -117,19 +135,33 @@ Model * initModel(int maxCells)
 * We start at this point with a single cell that has not yet been incoluted. The reasoning behind this layout is the future application of a user defined number of cells to inoculate the model. Need to implement the random initiation.   
 *
 * @param model Model object 
+* @param tau Doubling rate of the population (only applicable to exponetially growing populations)
 * @param cNoise Gaussian noise standard deviation for a population associated with replication time (C)
 * @param dNoise Gaussian noise standard deviation for a population associated with segregation time (D)
 * @param Vi Volume at initiation. Also called critical mass
+* @param Vi_plasmid Plasmid critical mass (experimental)
 * @param ViNoise Gaussian noise standard deviation for a population associated with initiation volume (Vi)
 * @param VaNoise Gaussian noise standard deviation for a population associated with cellular growth
-* @param chanceInit Probability term that the competent replication fork, or origin of replication opens  (if > than random number from Gaussian distribution with mean 0 and standard deviation of 1)
+* @param chanceInit Probability term that the competent replication fork, or origin of replication opens (if > than random number from Gaussian distribution with mean 0 and standard deviation of 1)
 * @param divNoise Gaussian noise standard deviation for a population associated with division assymetry (WT = 0.5, i.e. perfect distribution of mass between mother and daughter cell)
 * @param divRatio Gaussian noise mean asymmetry between mother and daughter cell at division (associated with divNoise)
 * @param partRatio Gaussian noise mean partition noise for the distribution of chromosomes between mother and dauther cell at division
 * @param partNoise Gaussian noise standard deviation for the distribution of chromosomes between mother and daughter cell at division
-* @param chanceDNAdamage Probability term that a chromosome experiences DNA damage (if > than random number from Gaussian distribution with mean 0 and standard deviation of 1)
-* @param ratioDNAdamage Probability term that given a chromosome that experiences DNA damage, that this damage leads to either whole chromosome degradation, or replicating strand degradation
-* @param dt Time step
+* @param chromDeg Probability term that a chromosome experiences DNA damage (if > than random number from Gaussian distribution with mean 0 and standard deviation of 1)
+* @param repForkDeg Probability term that given a chromosome that experiences DNA damage, that this damage leads to either whole chromosome degradation, or replicating strand degradation
+* @param C1 One-phase exponential function replication time first term
+* @param C2 One-phase exponential function replication time second term
+* @param C3 One-phase exponential function replication time third term
+* @param D1 One-phase exponential function segregation time first term
+* @param D2 One-phase exponential function segregation time second term
+* @param D3 One-phase exponential function segregation time third term
+* @param modelInitialParams GSL model initial parameters 
+* @param modelInitialSpecies GSL model initial species
+* @param modelGeneLocations Relative position of the genes on the chromosome for the GSL model
+* @param modelGeneParamsLocations Position of the parameter that dictates the copy number influence on the expression of the GSL model
+* @param modelGeneLRPos Position of the genes on either the left hand (0) or right hand (1) side of the chromosome 
+* @param dt time step in min-1
+*
 * @return Error handling integer
 */
 int setModel(Model * model, 
@@ -161,6 +193,7 @@ int setModel(Model * model,
 		float dt)
 {
 	//make for a tmp file to write to
+	/*
 	char fileName[17];
 	sprintf(fileName, "phases_su_%d.csv", (int)modelGeneLocations[0]);
         f = fopen(fileName, "w");
@@ -170,12 +203,13 @@ int setModel(Model * model,
                 exit(1);
         }
 	fprintf(f, "time,numCells,Ga,stdGa,phase1,phase2,phase3,meanGene1,stdGene1,meanGene2,stdGene2,meanGene3,stdGene3\n");
-	
+	*/
+
 	model->dt = dt;
 	model->t = 0.0;
 	model->stop = 0;
 	
-	//kind of stupid, should be able to tell him how many cells i want to inoculate with random number
+	//TODO: kind of stupid, should be able to tell him how many cells i want to inoculate with random number
 	model->cellPopulation->numCells = 1;
 	model->cellPopulation->freeIndex = 1;
 	model->cellPopulation->indexArray = 1;
@@ -200,11 +234,11 @@ int setModel(Model * model,
 	model->cellPopulation->chromDeg = chromDeg;
 	model->cellPopulation->repForkDeg = repForkDeg;	
 	model->cellPopulation->numFrozenCells = 0;	
-	memcpy(model->cellPopulation->modelInitialParams, modelInitialParams, sizeof(double)*8);
-	memcpy(model->cellPopulation->modelInitialSpecies, modelInitialSpecies, sizeof(double)*15);
-	memcpy(model->cellPopulation->modelGeneLocations, modelGeneLocations, sizeof(float)*3);
-	memcpy(model->cellPopulation->modelGeneParamsLocations, modelGeneParamsLocations, sizeof(int)*3);
-	memcpy(model->cellPopulation->modelGeneLRPos, modelGeneLRPos, sizeof(int)*3);
+	memcpy(model->cellPopulation->modelInitialParams, modelInitialParams, sizeof(double)*8); //TODO: don't make this to be hardcoded
+	memcpy(model->cellPopulation->modelInitialSpecies, modelInitialSpecies, sizeof(double)*15); //TODO: same
+	memcpy(model->cellPopulation->modelGeneLocations, modelGeneLocations, sizeof(float)*3); //TODO: same
+	memcpy(model->cellPopulation->modelGeneParamsLocations, modelGeneParamsLocations, sizeof(int)*3); //TODO: same 
+	memcpy(model->cellPopulation->modelGeneLRPos, modelGeneLRPos, sizeof(int)*3); //TODO: same
 	/*
 	memcpy(model->cellPopulation->modelInitialParams, modelInitialParams, sizeof(double)*(NUM_MODELPARAMS+1));
 	memcpy(model->cellPopulation->modelInitialSpecies, modelInitialSpecies, sizeof(double)*(NUM_MODELSPECIES+1));
@@ -218,7 +252,7 @@ int setModel(Model * model,
 /**
 * @brief Initialise all cells in cellArray and initiate the first cell
 *
-* Initiatlise all the cells in cellArray and flag them as being dead. Loop through the first set of cells and initiate the first cells, numCells, in the array (set as 1 at the moment).
+* Initiated all the cells in cellArray and flag them as being dead. Loop through the first set of cells and initiate the first cells, numCells, in the array (set as 1 at the moment). All cells are intitiated to have an age of 0.
 * TODO: instead of directly accessing the cell.h function, pass through the cellPopulation
 *
 * @param model Model object
@@ -234,32 +268,35 @@ int inoculateModel(Model * model)
 
 	for(i=0; i<model->cellPopulation->numCells; i++)
 	{
+		//if the input C time is input in minutes
 		if(model->cellPopulation->C2==-1.0)
 		{
 			initialiseCell(model->cellPopulation->cellArray,
 				    i,
 				    model->cellPopulation->tau,
 				    model->cellPopulation->C1,
-				    6646.0*model->cellPopulation->C1/4639221.0,
+				    6646.0*model->cellPopulation->C1/4639221.0, //This is based on the size of the ColE1 in base pairs against the size of the chromosome in base pairs for a bacterial chromosome
 				    model->cellPopulation->cNoise,
 				    model->cellPopulation->D1,
 				    model->cellPopulation->dNoise,
 				    model->cellPopulation->Vi,
 				    model->cellPopulation->Vi_plasmid,
 				    model->cellPopulation->ViNoise,
-				    model->cellPopulation->Vi/2.0,
+				    model->cellPopulation->Vi/2.0, //TODO: why is this /2 ????
 				    model->cellPopulation->VaNoise,
 				    model->cellPopulation->modelInitialSpecies,
 				    model->cellPopulation->modelInitialParams,
 				    0.0);
 		}
+		//if the input C time is in its functional form
+		//TODO: add error handling from the initialiseCell
 		else
 		{
 			initialiseCell(model->cellPopulation->cellArray,
 				    i,
 				    model->cellPopulation->tau,
 				    model->cellPopulation->C1*(1.0+(model->cellPopulation->C2*exp(-model->cellPopulation->C3/(model->cellPopulation->tau/60.0)))),
-				    6646.0*(model->cellPopulation->C1*(1.0+(model->cellPopulation->C2*exp(-model->cellPopulation->C3/(model->cellPopulation->tau/60.0)))))/4639221.0,
+				    6646.0*(model->cellPopulation->C1*(1.0+(model->cellPopulation->C2*exp(-model->cellPopulation->C3/(model->cellPopulation->tau/60.0)))))/4639221.0, //This is based on the size of the ColE1 in base pairs against the size of the chromosome in base pairs for a bacterial chromosome
 				    model->cellPopulation->cNoise,
 				    model->cellPopulation->D1*(1.0+(model->cellPopulation->D2*exp(-model->cellPopulation->D3/(model->cellPopulation->tau/60.0)))),
 				    model->cellPopulation->dNoise,
@@ -279,7 +316,7 @@ int inoculateModel(Model * model)
 /**
 * @brief Clean the model for the purpose of freeing the memory correctly
 *
-* Clean the model. Call constructCell on each cell in the array to free them, and free the cellArray.
+* Clean the model. Call constructCell() on each cell in the array to free them, and free the cellArray.
 * Finally free the Model object
 *
 * @param model Model object
@@ -287,7 +324,7 @@ int inoculateModel(Model * model)
 */
 int cleanModel(Model * model)
 {
-	fclose(f);
+	//fclose(f); close the close
 	for(int i=0; i<model->cellPopulation->maxCells; i++)
 	{
 		gsl_odeiv2_driver_free(model->cellPopulation->cellArray[i].driver);
@@ -2220,4 +2257,4 @@ int main()
 
 	cleanModel(model);
 	return 0;
-}
+
