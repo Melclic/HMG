@@ -253,7 +253,7 @@ int setModel(Model * model,
 * @brief Initialise all cells in cellArray and initiate the first cell
 *
 * Initiated all the cells in cellArray and flag them as being dead. Loop through the first set of cells and initiate the first cells, numCells, in the array (set as 1 at the moment). All cells are intitiated to have an age of 0.
-* TODO: instead of directly accessing the cell.h function, pass through the cellPopulation
+* TODO: instead of directly accessing the cell.h function, pass through the cellPopulation.h
 *
 * @param model Model object
 * @return Error handling integer
@@ -269,6 +269,7 @@ int inoculateModel(Model * model)
 	for(i=0; i<model->cellPopulation->numCells; i++)
 	{
 		//if the input C time is input in minutes
+		//TODO: add error handling from the initialiseCell
 		if(model->cellPopulation->C2==-1.0)
 		{
 			initialiseCell(model->cellPopulation->cellArray,
@@ -289,7 +290,6 @@ int inoculateModel(Model * model)
 				    0.0);
 		}
 		//if the input C time is in its functional form
-		//TODO: add error handling from the initialiseCell
 		else
 		{
 			initialiseCell(model->cellPopulation->cellArray,
@@ -317,7 +317,6 @@ int inoculateModel(Model * model)
 * @brief Clean the model for the purpose of freeing the memory correctly
 *
 * Clean the model. Call constructCell() on each cell in the array to free them, and free the cellArray.
-* Finally free the Model object
 *
 * @param model Model object
 * @return Error handling integer
@@ -383,7 +382,8 @@ int cleanModel(Model * model)
 /**
 * @brief Randomly delete live cells to restrict the population
 *
-* Clean all the cells that have been isFrozen (Warning: this could skew the results). Randomly delete live cells until the numCells==targetNumCells.  
+* Clean all the cells that have been frozen (Warning: this could skew the results).
+* Thereafter randomly delete live cells until the numCells==targetNumCells.  
 *
 * @param model Model object
 * @param targetNumCells Number of cells to be left
@@ -395,7 +395,7 @@ int randomRestrictNumCells(Model * model, int targetNumCells)
 	int startNumCells = getRealNumCells(model);
 
 	//first clean the cells that are isFrozen	
-	//WARINING: This could skew the results
+	//WARNING: This could skew the results
 	if(model->cellPopulation->numFrozenCells!=0)
 	{
 		for(i=0; i<model->cellPopulation->maxCells; i++)
@@ -441,6 +441,11 @@ int randomRestrictNumCells(Model * model, int targetNumCells)
 *
 * Given that we input the total volume calculated from OD, we need to normalise it to the volume of the simulated population
 *
+* @param model Model object
+* @param totalVolumes Array of the total volume of the population, recalculated or not
+* @param lenTotalV Length of the totalVolumes array
+* @param volPos Position of the simulation in the totalVolumes array
+* @return Error handling integer
 **/
 int recalculateVolumeAddition(Model * model, double * totalVolumes, int lenTotalV, int volPos)
 {
@@ -459,10 +464,10 @@ int recalculateVolumeAddition(Model * model, double * totalVolumes, int lenTotal
 /**
 * @brief Randomly block the segregation of cells in the population
 *
-* To emulate the drug treatment of cephalexin and rifampicin, we block the segregation (D), and the initiation of new origin of replication by setting these two to unreachable values. This is done stochastically to emulate that the drugs do not reach cells uniformally.
+* To emulate the drug treatment of cephalexin and rifampicin, we block the segregation (D), and the initiation of new origin of replication by setting these two to unreachable values. This is done stochastically (random Gaussian) to emulate that the drugs do not reach cells uniformally.
 *
 * @param model Model object
-* @param drugNoise Probability term that the cell experiences the drug treatment
+* @param drugNoise Probability based on Gaussian equation that the cell experiences the drug treatment
 * @return Error handling integer
 */
 int blockUnrep(Model * model, float drugNoise)
@@ -486,7 +491,7 @@ int blockUnrep(Model * model, float drugNoise)
 * Loop through all the cells and all the chromosomes and check if the replication forks are open or not. If any one of them are open return 1, if none are return 0. 
 *
 * @param model Model object
-* @return Boolean integer to see if there is any replication fork open
+* @return Integer to see if a replication fork is open (1) or not (0)
 */
 int checkIfAnyRep(Model * model)
 {
@@ -508,9 +513,10 @@ int checkIfAnyRep(Model * model)
 /**
 * @brief Run the drug treatment
 *
-* Loop through all the cells and induce the drug treatment, emulating cephalexin and rifampicin drugs, until all the cells in the simulation do not have a single replication fork open.
+* Loop through all the cells and induce the drug treatment, emulating cephalexin and rifampicin drugs (blockUnrep()), until all the cells in the simulation do not have a single replication fork open.
 *
 * @param model Model object
+* @param maximalExecTime Timer that determines the maximal time permissive
 * @param targetCellCount Restrict the number of cells max
 * @param drugNoise Probability parameter that a cell experiences the drug treatment
 * @return Error handling integer
@@ -556,7 +562,6 @@ int runDrugTreatment(Model * model, float maximalExecTime, int targetCellCount, 
 * Getter of number of cells from the cellPopulation structure
 *
 * @param model Model object
-*
 * @return Number of cells in the population
 */
 int getNumCells(Model * model)
@@ -570,7 +575,6 @@ int getNumCells(Model * model)
 * Getter of number of cells by looping all the cellArray and counting the number of cells that are still alive
 *
 * @param model Model object
-*
 * @return Number of cells in the simulation
 */
 int getRealNumCells(Model * model)
@@ -617,14 +621,15 @@ float getMeanSegStart(Model * model)
 /**
 * @brief Getter for the standard deviation of the start of segregation
 *
-* Returns the standard deviation of the start of segregation
+* Returns the standard deviation of the start of segregation by looping through all the cells in the simulation and calling getMeanSegStart()
 * 
 * @param model Model object
 * @return stndard deviation for the start of the segregation
 */
-float getStdSegStart(Model * model, float meanSegStart)
+float getStdSegStart(Model * model)
 {
         float deviation = 0.0;
+	float meanSegStart = getMeanSegStart(model);
         int numCells = 0;
         int i;
         for(i=0; i<model->cellPopulation->maxCells; i++)
@@ -674,8 +679,9 @@ float getMeanDoublingTime(Model * model)
 * @param model Model object
 * @return stndard deviation of doubling time
 */
-float getStdDoublingTime(Model * model, float meanDoublingTime)
+float getStdDoublingTime(Model * model)
 {
+	float meanDoublingTime = getMeanDoublingTime(model);
         float deviation = 0.0;
         int numCells = 0;
         int i;
@@ -723,13 +729,14 @@ float getMeanOriC(Model * model)
 /**
 * @brief Getter of oriC standard deviation of the population
 *
-* Returns the oriC standard deviation of the population in the simulation
+* Returns the oriC standard deviation of the population in the simulation. Calls getMeanOriC().
 * 
 * @param model Model object
-* @return stndard deviation of oriC
+* @return float standard deviation of oriC
 */
 float getStdOriC(Model * model, float meanOriC)
 {
+	float meanOriC = getMeanOriC(model);
 	float deviation = 0.0;
 	int numCells = 0;
 	int i, y;
@@ -758,7 +765,7 @@ float getStdOriC(Model * model, float meanOriC)
 * Getter of the mean number of oriC in the simulator. Loops through all the cells and returns their DNA content.
 * 
 * @param model Model object
-* @return float Mean oriC
+* @return Mean oriC
 */
 float getMeanChrom(Model * model)
 {
@@ -779,13 +786,14 @@ float getMeanChrom(Model * model)
 /**
 * @brief Getter of oriC standard deviation of the population
 *
-* Returns the oriC standard deviation of the population in the simulation
+* Returns the oriC standard deviation of the population in the simulation. Calls getMeanChrom()
 * 
 * @param model Model object
-* @return stndard deviation of oriC
+* @return standard deviation of oriC
 */
-float getStdChrom(Model * model, float meanChrom)
+float getStdChrom(Model * model)
 {
+	float meanChrom = getMeanChrom(model);
 	float deviation = 0.0;
 	int numCells = 0;
 	int i, y;
@@ -814,7 +822,6 @@ float getStdChrom(Model * model, float meanChrom)
 * @param DNAContent Empty 1D array of size maxCells
 * @return Error handling integer
 */
-//int getDNAContent(Model * model, float * DNAContent)
 int getDistGa(Model * model, float * Ga)
 {
 	int i, y;
@@ -833,10 +840,10 @@ int getDistGa(Model * model, float * Ga)
 /**
 * @brief Getter of the Mean DNA content of the simulator
 *
-* Getter of the Mean DNA content of the simulator. Loops through all the cells and returns their DNA content.
+* Getter of the Mean DNA content of the simulator. Loops through all the cells and returns the mean DNA content of the population
 * 
 * @param model Model object
-* @return float Mean DNA content
+* @return Mean DNA content
 */
 float getMeanGa(Model * model)
 {
@@ -857,13 +864,14 @@ float getMeanGa(Model * model)
 /**
 * @brief Getter of Chromosome DNA content standard deviation of the population
 *
-* Returns the chromosome DNA content standard deviation of the population in the simulation
+* Returns the chromosome DNA content standard deviation of the population in the simulation. Calls the getMeanGa() function
 * 
 * @param model Model object
-* @return Mean volume
+* @return Genetic content standard deviation
 */
-float getStdGa(Model * model, float meanGa)
+float getStdGa(Model * model)
 {
+	float meanGa = getMeanGa(model);
 	float deviation = 0.0;
 	int numCells = 0;
 	int i;
@@ -886,10 +894,9 @@ float getStdGa(Model * model, float meanGa)
 * Getter of the growth rate distribution of the population
 * 
 * @param model Model object
-* @param tauContent Array of size numCells
+* @param tauContent 1D array of size maxCells
 * @return Error handling integer
 */
-//int getDNAContent(Model * model, float * DNAContent)
 int getDistTau(Model * model, float * tauContent)
 {
 	int i, y;
@@ -908,10 +915,10 @@ int getDistTau(Model * model, float * tauContent)
 /**
 * @brief Getter of mean tau of the population
 *
-* Returns the average doubling rate of the population in the simulation
+* Returns the average doubling time of the population in the simulation
 * 
 * @param model Model object
-* @return Mean volume
+* @return Mean doubling time
 */
 float getMeanTau(Model * model)
 {
@@ -932,13 +939,14 @@ float getMeanTau(Model * model)
 /**
 * @brief Getter of tau standard deviation of the population
 *
-* Returns the tau standard deviation of the population in the simulation
+* Returns the tau standard deviation of the population in the simulation. Calls getMeanTau()
 * 
 * @param model Model object
-* @return Mean volume
+* @return Tau standard deviation
 */
-float getStdTau(Model * model, float TauAv)
+float getStdTau(Model * model)
 {
+	float TauAv = getMeanTau(model);
 	float deviation = 0.0;
 	int numCells = 0;
 	int i;
@@ -958,13 +966,12 @@ float getStdTau(Model * model, float TauAv)
 /**
 * @brief Getter of the plasmid DNA content of the simulator
 *
-* Getter of the plasmid DNA content of the simulator. Loops through all the plasmid cells and returns their DNA content.
+* Getter of the plasmid DNA content of the simulator. Loops through all the cells and returns their plasmid DNA content.
 * 
 * @param model Model object
 * @param Pa Empty 1D array of size maxCells
 * @return Error handling integer
 */
-//int getPlasmidDNAContent(Model * model, float * DNAContent)
 int getPa(Model * model, float * Pa)
 {
 	int i;
@@ -1007,13 +1014,14 @@ float getMeanPa(Model * model)
 /**
 * @brief Getter of Plasmid DNA content standard deviation of the population
 *
-* Returns the plasmid DNA content standard deviation of the population in the simulation
+* Returns the plasmid DNA content standard deviation of the population in the simulation. Call the getMeanPa() function
 * 
 * @param model Model object
-* @return Std plasmid DNA content
+* @return Standard deviation plasmid DNA content
 */
-float getStdPa(Model * model, float meanPa)
+float getStdPa(Model * model)
 {
+	float meanPa = getMeanPa(model);
 	float deviation = 0.0;
 	int numCells = 0;
 	int i;
@@ -1031,37 +1039,40 @@ float getStdPa(Model * model, float meanPa)
 //################################## V #############################
 
 /**
-* @brief Getter of sum of population volume
+* @brief Getter of mean volume of the population
 *
-* Loops through all members of the population and appends their volume
+* Returns the average volume of the population in the simulation. Loops through all the cells in the population
 * 
 * @param model Model object
-* @return Total volume
+* @return Mean volume
 */
-double getTotalVolume(Model * model)
+float getMeanVa(Model * model)
 {
-	double totalVolumes = 0.0;
+	float totalVolumes = 0.0;
+	int numCells = 0;
 	int i;
         for(i=0; i<model->cellPopulation->maxCells; i++)
         {
 		if(model->cellPopulation->cellArray[i].isDead==false)
 		{
 			totalVolumes += model->cellPopulation->cellArray[i].Va;
+			numCells += 1;
 		}
         }
-	return totalVolumes;
+	return totalVolumes/numCells;
 }
 
 /**
 * @brief Getter of mean volume of the population
 *
-* Returns the average volume of the population in the simulation
+* Returns the average volume of the population in the simulation. Loops through all the cells in the simulation. Calls the getMeanVa() function
 * 
 * @param model Model object
 * @return Mean volume
 */
-float getStdVa(Model * model, float Vav)
+float getStdVa(Model * model)
 {
+	float Vav = getMeanVa(model);
 	float deviation = 0.0;
 	int numCells = 0;
 	int i;
@@ -1107,7 +1118,6 @@ float getTotalV(Model * model)
 * @param Va Empty 1D array of size maxCells
 * @return Error handling integer
 */
-//int getDNAContent(Model * model, float * DNAContent)
 int getDistVa(Model * model, float * Va)
 {
 	int i, y;
@@ -1123,15 +1133,17 @@ int getDistVa(Model * model, float * Va)
 	return 0;
 }
 
+//################################ age ###############################
+
 /**
-* @brief Getter of mean volume of the population
+* @brief Getter of mean age of the population
 *
-* Returns the average volume of the population in the simulation
+* Returns the average age of the population in the simulation. Loops through all the cells in the population
 * 
 * @param model Model object
 * @return Mean volume
 */
-float getMeanVa(Model * model)
+float getMeanAge(Model * model)
 {
 	float totalVolumes = 0.0;
 	int numCells = 0;
@@ -1140,62 +1152,37 @@ float getMeanVa(Model * model)
         {
 		if(model->cellPopulation->cellArray[i].isDead==false)
 		{
-			totalVolumes += model->cellPopulation->cellArray[i].Va;
+			totalVolumes += model->cellPopulation->cellArray[i].a;
 			numCells += 1;
 		}
         }
 	return totalVolumes/numCells;
 }
 
-//############################## Prev numbers #####################
-
-int getDistPrev_a(Model * model, float * dist_a)
-{       
-        int i, y; 
-        int count = 0;
-        for(i=0; i<model->cellPopulation->maxCells; i++)
-        {       
-                if(model->cellPopulation->cellArray[i].isDead==false)
-                {       
-                        dist_a[count] = model->cellPopulation->cellArray[i].prev_sum_a;
-                        count += 1;
-                }
-        }
-        return 0;
-}
-
-int getDistPrev_Vb(Model * model, float * dist_Vb)
-{       
-        int i, y; 
-        int count = 0;
-        for(i=0; i<model->cellPopulation->maxCells; i++)
-        {       
-                if(model->cellPopulation->cellArray[i].isDead==false)
-                {       
-                        dist_Vb[count] = model->cellPopulation->cellArray[i].prev_newbornVol;
-                        count += 1;
-                }
-        }
-        return 0;
-}
-
-int getDistPrev_Vd(Model * model, float * dist_Vd)
+/**
+* @brief Getter of standard deviation age of the population
+*
+* Returns the standard deviation age of the population in the simulation. Loops through all the cells in the simulation. Calls the getMeanA() function
+* 
+* @param model Model object
+* @return Age standard deviation
+*/
+float getStdAge(Model * model)
 {
-        int i, y;
-        int count = 0;
+	float Aav = getMeanAge(model);
+	float deviation = 0.0;
+	int numCells = 0;
+	int i;
         for(i=0; i<model->cellPopulation->maxCells; i++)
         {
-                if(model->cellPopulation->cellArray[i].isDead==false)
-                {
-                        dist_Vd[count] = model->cellPopulation->cellArray[i].prev_divisionVol;
-                        count += 1;
-                }
+		if(model->cellPopulation->cellArray[i].isDead==false)
+		{
+			deviation += pow((model->cellPopulation->cellArray[i].a-Aav),2);
+			numCells += 1;
+		}
         }
-        return 0;
+	return sqrt(deviation/numCells);
 }
-
-
-//################################ age ###############################
 
 /**
 * @brief Getter of the age distribution of the population
@@ -1203,10 +1190,9 @@ int getDistPrev_Vd(Model * model, float * dist_Vd)
 * Getter of the age of the simulator. Loops through all the cells and returns their age.
 * 
 * @param model Model object
-* @param Va Empty 1D array of size maxCells
+* @param age Empty 1D array of size maxCells
 * @return Error handling integer
 */
-//int getDNAContent(Model * model, float * DNAContent)
 int getDistAge(Model * model, float * age)
 {
 	int i, y;
@@ -1222,200 +1208,17 @@ int getDistAge(Model * model, float * age)
 	return 0;
 }
 
-//############################# Model ############################
-
+//######################################## Replication (C) time ########################
+ 
 /**
-*@brief Getter of the mean phase of the population
+* @brief Getter of mean population replication time (C)
 *
-* NOTE: ONLY FOR THE REPRESSILATOR
-**/
-float * getMeanPhase(Model * model)
-{
-	static float ret[3];
-	float phase1 = 0.0;
-	float phase2 = 0.0;
-	float phase3 = 0.0;
-	int numCells = 0;
-	for(int i=0; i<model->cellPopulation->maxCells; i++)
-        {
-                if(model->cellPopulation->cellArray[i].isDead==false)
-                {
-			double A = model->cellPopulation->cellArray[i].modelSpecies[0];
-			double B = model->cellPopulation->cellArray[i].modelSpecies[5];
-			double C = model->cellPopulation->cellArray[i].modelSpecies[10];
-			//case where A > B and > C
-			if(A>=B && A>=C)
-			{
-				phase1 += 1.0;
-			}
-			else if(B>=A && B>=C)
-			{
-				phase2 += 1.0;
-			}
-			else if(C>=A && C>=B)
-			{
-				phase3 += 1.0;
-			}
-			numCells += 1;	
-		}
-	}
-	ret[0] = phase1/(float)numCells;
-	ret[1] = phase2/(float)numCells;
-	ret[2] = phase3/(float)numCells;
-	return ret;
-}
-
-float * getSinglePhase(Model * model, int cellNum)
-{
-	static float ret[3];
-	double A = model->cellPopulation->cellArray[cellNum].modelSpecies[0];
-	double B = model->cellPopulation->cellArray[cellNum].modelSpecies[5];
-	double C = model->cellPopulation->cellArray[cellNum].modelSpecies[10];
-	float phase1 = 0.0;
-	float phase2 = 0.0;
-	float phase3 = 0.0;
-	if(A>=B && A>=C)
-	{
-		phase1 += 1.0;
-	}
-	else if(B>=A && B>=C)
-	{
-		phase2 += 1.0;
-	}
-	else if(C>=A && C>=B)
-	{
-		phase3 += 1.0;
-	}
-	ret[0] = phase1;
-	ret[1] = phase2;
-	ret[2] = phase3;
-	return ret;
-}
-
-/**
-*@ brief Getter for the mean concentration of a population 
-* 
-* Returns the mean concentration of one of the species of the model within the population
-*
-* @param model Model object
-* @param speciesNum Location in the array of the species of interest
-**/
-//TODO: The true concentration is actually related to volume of the cell. Not sure how to implement this at this point in time (--> remove the dilution of the molecule from the degredation term and apply it to the simulation)
-double getMeanModelSpecies(Model * model, int speciesNum)
-{
-	double meanSpecies = 0.0;
-	int numCells = 0;
-	//check that the range on the speciesNum is correct
-	//if(speciesNum>=NUM_MODELSPECIES)
-	if(speciesNum>=15)
-	{
-		printf("WARNING (getMeanModelSpecies): sepciesNum out of range\n");
-		return -1.0;
-	}
-	else
-	{
-		for(int i=0; i<model->cellPopulation->maxCells; i++)
-		{
-			if(model->cellPopulation->cellArray[i].isDead==false)
-			{
-				meanSpecies += model->cellPopulation->cellArray[i].modelSpecies[speciesNum];
-				numCells += 1;
-			}
-		}
-	}
-	//printf("meanSpecies[%d]: %f/%f\n", speciesNum, meanSpecies, (double)numCells);
-	return meanSpecies/(double)numCells;
-}
-
-/**
-*@ brief Getter for a single concentration of a population 
-* 
-* Returns the mean concentration of one of the species of the model within the population
-*
-* @param model Model object
-* @param speciesNum Location in the array of the species of interest
-* @param speciesNum Location in the cellArray of the cell of interest
-**/
-double getSingleModelSpecies(Model * model, int cellNum, int speciesNum)
-{
-	//check that the species location is valid
-	//if(speciesNum>=NUM_MODELSPECIES)
-	if(speciesNum>=15)
-	{
-		printf("WARNING(getSingleModelSpecies): speciesNum is out of range\n");
-		return -1.0;
-	}
-	//check that the cell of interest is alive
-	if(model->cellPopulation->cellArray[cellNum].isDead==true)
-	{
-		printf("WARNING(getSingleModelSpecies): cellArray[%d].isDead The cell is dead\n", cellNum);
-		return -1.0;
-	}
-	return model->cellPopulation->cellArray[cellNum].modelSpecies[speciesNum];
-}
-
-
-/**
-* @brief Getter of mean divVol of the population
-*
-* Returns the average divVol of the population in the simulation
-* 
-* @param model Model object
-* @return Mean divVol
-*/
-/*
-float getMeanDivVol(Model * model)
-{
-	float totalDivVol = 0.0;
-	int numCells = 0;
-	int i;
-        for(i=0; i<model->cellPopulation->maxCells; i++)
-        {
-		if(model->cellPopulation->cellArray[i].isDead==false)
-		{
-			totalDivVol += model->cellPopulation->cellArray[i].divVol;
-			numCells += 1;
-		}
-        }
-	return totalDivVol/numCells;
-}
-*/
-
-/**
-* @brief Getter of tau standard deviation of the population
-*
-* Returns the tau standard deviation of the population in the simulation
-* 
-* @param model Model object
-* @return Mean volume
-*/
-/*
-float getStdDivVol(Model * model, float divVolAv)
-{
-	float deviation = 0.0;
-	int numCells = 0;
-	int i;
-        for(i=0; i<model->cellPopulation->maxCells; i++)
-        {
-		if(model->cellPopulation->cellArray[i].isDead==false)
-		{
-			deviation += pow((model->cellPopulation->cellArray[i].divVol-divVolAv),2);
-			numCells += 1;
-		}
-        }
-	return sqrt(deviation/numCells);
-}
-*/
-
-/**
-* @brief Getter of mean population C
-*
-* Loops through all members of the population and calculates mean C
+* Loops through all members of the population and calculates mean replication time (C)
 * 
 * @param model Model object
 * @return Mean C
 */
-float meanPopC(Model * model)
+float getMeanC(Model * model)
 {
 	float meanC = 0.0;
 	int i;
@@ -1432,15 +1235,39 @@ float meanPopC(Model * model)
 }
 
 /**
-* @brief Getter of the C time content of all the individual cells in the simulator
+* @brief Getter of standard deviation replication time (C) of the population
 *
-* Getter of the C time of the simulator. Loops through all the cells and returns their DNA content.
+* Returns the replication time (C) standard deviation of the population in the simulation. Loops through all the cells in the simulation. Calls the getMeanC() function
+* 
+* @param model Model object
+* @return C standard deviation
+*/
+float getStdC(Model * model)
+{
+	float Cav = getMeanC(model);
+	float deviation = 0.0;
+	int numCells = 0;
+	int i;
+        for(i=0; i<model->cellPopulation->maxCells; i++)
+        {
+		if(model->cellPopulation->cellArray[i].isDead==false)
+		{
+			deviation += pow((model->cellPopulation->cellArray[i].C-Cav),2);
+			numCells += 1;
+		}
+        }
+	return sqrt(deviation/numCells);
+}
+
+/**
+* @brief Getter of the replication time (C) content of all the individual cells in the simulator
+*
+* Getter of the replication time (C) of the simulator. Loops through all the cells and returns their DNA content.
 * 
 * @param model Model object
 * @param CContent Empty 1D array of size maxCells
 * @return Error handling integer
 */
-//int getDNAContent(Model * model, float * DNAContent)
 int getDistC(Model * model, float * CContent)
 {
 	int i, y;
@@ -1456,10 +1283,63 @@ int getDistC(Model * model, float * CContent)
 	return 0;
 }
 
+//######################################## Segregation (D) time ########################
+
 /**
-* @brief Getter of mean population D
+* @brief Getter of mean population segregation time (D)
 *
-* Loops through all members of the population and calculates mean C
+* Loops through all members of the population and calculates mean segregation time (D)
+* 
+* @param model Model object
+* @return Mean D
+*/
+float getMeanD(Model * model)
+{
+	float meanD = 0.0;
+	int i;
+	int numCells = 0;
+        for(i=0; i<model->cellPopulation->maxCells; i++)
+        {
+		if(model->cellPopulation->cellArray[i].isDead==false)
+		{
+			meanD += model->cellPopulation->cellArray[i].D;
+			numCells += 1;
+		}
+        }
+	return meanD/(float)numCells;	
+}
+
+/**
+* @brief Getter of standard deviation segregation time (D) of the population
+*
+* Returns the segregation time (D) standard deviation of the population in the simulation. Loops through all the cells in the simulation. Calls the getMeanD() function
+* 
+* @param model Model object
+* @return D standard deviation
+*/
+float getStdD(Model * model)
+{
+	float Dav = getMeanD(model);
+	float deviation = 0.0;
+	int numCells = 0;
+	int i;
+        for(i=0; i<model->cellPopulation->maxCells; i++)
+        {
+		if(model->cellPopulation->cellArray[i].isDead==false)
+		{
+			deviation += pow((model->cellPopulation->cellArray[i].D-Dav),2);
+			numCells += 1;
+		}
+        }
+	return sqrt(deviation/numCells);
+}
+
+
+
+/**
+* @brief Getter of mean population segregation time (D)
+*
+* Loops through all members of the population and calculates mean segregation time (D)
 * 
 * @param model Model object
 * @return Mean D
@@ -1489,7 +1369,6 @@ float meanPopD(Model * model)
 * @param DContent Empty 1D array of size maxCells
 * @return Error handling integer
 */
-//int getDNAContent(Model * model, float * DNAContent)
 int getDistD(Model * model, float * DContent)
 {
 	int i, y;
@@ -1505,12 +1384,231 @@ int getDistD(Model * model, float * DContent)
 	return 0;
 }
 
+//############################## Prev parameters #####################
+
+/** 
+ * @brief Getter for the population distribution previous complete duplication time
+ *
+ * Returns a 1D array of all the previous age of the cells in the population (from birth to division)
+ *
+ * @param model Model object
+ * @param dist_a Empty 1D array of size maxCells 
+ * @return Error handling integer
+ */
+int getDistPrev_a(Model * model, float * dist_a)
+{       
+        int i, y; 
+        int count = 0;
+        for(i=0; i<model->cellPopulation->maxCells; i++)
+        {       
+                if(model->cellPopulation->cellArray[i].isDead==false)
+                {       
+                        dist_a[count] = model->cellPopulation->cellArray[i].prev_sum_a;
+                        count += 1;
+                }
+        }
+        return 0;
+}
+
+/** 
+ * @brief Getter for the population distribution previous volume at birth
+ *
+ * Returns a 1D array of all the previous volume at birth of the cells in the population
+ *
+ * @param model Model object
+ * @param dist_Vb Empty 1D array of size maxCells 
+ * @return Error handling integer
+ */
+int getDistPrev_Vb(Model * model, float * dist_Vb)
+{       
+        int i, y; 
+        int count = 0;
+        for(i=0; i<model->cellPopulation->maxCells; i++)
+        {       
+                if(model->cellPopulation->cellArray[i].isDead==false)
+                {       
+                        dist_Vb[count] = model->cellPopulation->cellArray[i].prev_newbornVol;
+                        count += 1;
+                }
+        }
+        return 0;
+}
+
+/** 
+ * @brief Getter for the population distribution previous volume at division
+ *
+ * Returns a 1D array of all the previous volume at division of the cells in the population 
+ *
+ * @param model Model object
+ * @param dist_Vb Empty 1D array of size maxCells 
+ * @return Error handling integer
+ */
+int getDistPrev_Vd(Model * model, float * dist_Vd)
+{
+        int i, y;
+        int count = 0;
+        for(i=0; i<model->cellPopulation->maxCells; i++)
+        {
+                if(model->cellPopulation->cellArray[i].isDead==false)
+                {
+                        dist_Vd[count] = model->cellPopulation->cellArray[i].prev_divisionVol;
+                        count += 1;
+                }
+        }
+        return 0;
+}
+
+//############################# Model ############################
+
+/**
+* @brief Getter of the mean phase of the population for the implementation of the repressilator in GSL
+*
+* Getter for the mean phases of the population when implementing the repressilator ODE model with the GSL simulator
+*
+* @param model Model Object
+* @return Array float of the three genes percentage
+**/
+float * getMeanPhase(Model * model)
+{
+	static float ret[3];
+	float phase1 = 0.0;
+	float phase2 = 0.0;
+	float phase3 = 0.0;
+	int numCells = 0;
+	for(int i=0; i<model->cellPopulation->maxCells; i++)
+        {
+                if(model->cellPopulation->cellArray[i].isDead==false)
+                {
+			double A = model->cellPopulation->cellArray[i].modelSpecies[0];
+			double B = model->cellPopulation->cellArray[i].modelSpecies[5];
+			double C = model->cellPopulation->cellArray[i].modelSpecies[10];
+			//case where A > B and A > C
+			if(A>=B && A>=C)
+			{
+				phase1 += 1.0;
+			}
+			else if(B>=A && B>=C)
+			{
+				phase2 += 1.0;
+			}
+			else if(C>=A && C>=B)
+			{
+				phase3 += 1.0;
+			}
+			numCells += 1;	
+		}
+	}
+	ret[0] = phase1/(float)numCells;
+	ret[1] = phase2/(float)numCells;
+	ret[2] = phase3/(float)numCells;
+	return ret;
+}
+
+/**
+* @brief Getter of the phase of a single cell for the implementation of the repressilator in GSL
+*
+* Getter for the phase of a single cell when implementing the repressilator ODE model with the GSL simulator
+*
+* @param model Model Object
+* @return Array float of the three genes
+**/
+float * getSinglePhase(Model * model, int cellNum)
+{
+	static float ret[3];
+	double A = model->cellPopulation->cellArray[cellNum].modelSpecies[0];
+	double B = model->cellPopulation->cellArray[cellNum].modelSpecies[5];
+	double C = model->cellPopulation->cellArray[cellNum].modelSpecies[10];
+	float phase1 = 0.0;
+	float phase2 = 0.0;
+	float phase3 = 0.0;
+	if(A>=B && A>=C)
+	{
+		phase1 += 1.0;
+	}
+	else if(B>=A && B>=C)
+	{
+		phase2 += 1.0;
+	}
+	else if(C>=A && C>=B)
+	{
+		phase3 += 1.0;
+	}
+	ret[0] = phase1;
+	ret[1] = phase2;
+	ret[2] = phase3;
+	return ret;
+}
+
+/**
+* @brief Getter for the mean concentration of a population 
+* 
+* Returns the mean concentration of one of the species of the model within the population
+*
+* @param model Model object
+* @param speciesNum Location in the array of the species of interest
+* @return Mean Species
+**/
+//TODO: The true concentration is actually related to volume of the cell. Not sure how to implement this at this point in time (--> remove the dilution of the molecule from the degredation term and apply it to the simulation)
+double getMeanModelSpecies(Model * model, int speciesNum)
+{
+	double meanSpecies = 0.0;
+	int numCells = 0;
+	//check that the range on the speciesNum is correct
+	//if(speciesNum>=NUM_MODELSPECIES)
+	if(speciesNum>=15) //TODO: this is temporary, implement NUM_MODELSPECIES
+	{
+		printf("WARNING (getMeanModelSpecies): sepciesNum out of range\n");
+		return -1.0;
+	}
+	else
+	{
+		for(int i=0; i<model->cellPopulation->maxCells; i++)
+		{
+			if(model->cellPopulation->cellArray[i].isDead==false)
+			{
+				meanSpecies += model->cellPopulation->cellArray[i].modelSpecies[speciesNum];
+				numCells += 1;
+			}
+		}
+	}
+	//printf("meanSpecies[%d]: %f/%f\n", speciesNum, meanSpecies, (double)numCells);
+	return meanSpecies/(double)numCells;
+}
+
+/**
+*@ brief Getter for a single concentration of a cell in the population 
+* 
+* Returns the concentration of one of the species of a single cell in the population
+*
+* @param model Model object
+* @param speciesNum Location in the array of the species of interest
+* @param speciesNum Location in the cellArray of the cell of interest
+* @return Species amount
+**/
+double getSingleModelSpecies(Model * model, int cellNum, int speciesNum)
+{
+	//check that the species location is valid
+	//if(speciesNum>=NUM_MODELSPECIES)
+	if(speciesNum>=15)
+	{
+		printf("WARNING(getSingleModelSpecies): speciesNum is out of range\n");
+		return -1.0;
+	}
+	//check that the cell of interest is alive
+	if(model->cellPopulation->cellArray[cellNum].isDead==true)
+	{
+		printf("WARNING(getSingleModelSpecies): cellArray[%d].isDead The cell is dead\n", cellNum);
+		return -1.0;
+	}
+	return model->cellPopulation->cellArray[cellNum].modelSpecies[speciesNum];
+}
+
 //####################################### Exposed Genes #################################
 
 /**
-* @brief Get the number of genes that are exposed based on the position in the terminal
+* @brief Get all individual cells chromosomal genes that are exposed based on the position in the terminal
 *
-* Given a gene at position X, where 0.0 is located at the oriC and 1.0 is located at the terC, calculate the gene copy number. Practically this involves looping through all cells and all their chormosomes (in which case already the copy number is +1), and determining if the replication forks are past the input posisition (and if that is the case, once again that is +1). Because pair of replication fork opening and progression is stochastic, either left or right part of the replication fork must be specified where LR==0 is left hand side of the chromosome and LR==1 is the right hand side and LR==2 is both. 
+* Getter of all the cells exposed genes based on their location along the chromosome. Given a gene at position X, where 0.0 is located at the oriC and 1.0 is located at the terC, calculate the gene copy number. Practically this involves looping through all cells and all their chromosomes (in which case already the copy number is +1), and determining if the replication forks are past the input position (and if that is the case, once again that is +1). Because pair of replication fork opening and progression is stochastic, either left or right part of the replication fork must be specified where LR==0 is left hand side of the chromosome and LR==1 is the right hand side and LR==2 is both. 
 * 
 * @param model Model object
 * @param numExposed Number of chromosomes that are exposed (must be the same structure as cell.h replicationTimers. i.e. [7][64][2])
@@ -1526,7 +1624,6 @@ ted. LR location on replicative side of the gene on the chromosome. 0--> Left, 1
 //NOTE: the array must be initialised to 0
 //percLoc -> 1/2 the chrom == 100%. if the gene is on the left hand side of the chromosome 
 //int LR location on replicative side of the gene on the chromosome. 0--> Left, 1 --> Right, 2--> both
-// WRRRRRROOOONNGG
 int getNumExposedGenes(Model * model, int ** numExposed, float percLoc, int LR)
 {
         int index;
@@ -1606,6 +1703,15 @@ int getNumExposedGenes(Model * model, int ** numExposed, float percLoc, int LR)
 	return 0;
 }
 
+/**
+ * @brief Mean gene copy number of a chromosomal gene based on its relative position
+ *
+ * This function returns the mean copy number of a gene based on its relative position on the chromosome (where oriC==1.0 and terC==0.0). Because the two replication forks are stochastic in nature, the LR parameter determines if we are considering the left or right hand side of a chromosome. 
+ *
+ * @param model Model object
+ * @param percLoc Location of the gene on the chromosome
+ * @param LR Either left (0) or right (1) of the pair of replication forks
+ */
 float getMeanGeneCount(Model * model, float percLoc, int LR)
 {
         int index;
@@ -1668,9 +1774,18 @@ float getMeanGeneCount(Model * model, float percLoc, int LR)
 	return (float)tmpSampleCount/(float)count;
 }
 
-
-float getStdGeneCount(Model * model, float percLoc, int LR, float meanGeneCount)
+/**
+ * @brief Standard deviation of gene copy number of a chromosomal gene based on its relative position
+ *
+ * This function returns the standard deviation for the copy number of a gene based on its relative position on the chromosome (where oriC==1.0 and terC==0.0). Because the two replication forks are stochastic in nature, the LR parameter determines if we are considering the left or right hand side of a chromosome. 
+ *
+ * @param model Model object
+ * @param percLoc Location of the gene on the chromosome
+ * @param LR Either left (0) or right (1) of the pair of replication forks
+ */
+float getStdGeneCount(Model * model, float percLoc, int LR)
 {
+	float meanGeneCount = getMeanGeneCount(model, percLoc, LR);
         int index;
         int i;
         int y;
@@ -1744,8 +1859,6 @@ float getStdGeneCount(Model * model, float percLoc, int LR, float meanGeneCount)
 *
 * @return Boolean type parameter if the drug treatment is succesfull or not
 */
-
-
 //Injection reporting the gene copy numbers every 5 minutes
 int runInjection(Model * model, 
 			float maximalExecTime, 
@@ -1792,6 +1905,7 @@ int runInjection(Model * model,
 	//fprintf(f1, "time,Ga,oriC,chromNum,tau,V,divVol\n");
 	//fprintf(f, "time,cellConc,Ga,stdGa,meanGeneCount_1_1,stdGeneCount_1_1,meanGeneCount_1_2,stdGeneCount_1_2,meanGeneCount_1_3,stdGeneCount_1_3,meanGeneCount_2_1,stdGeneCount_2_1,meanGeneCount_2_2,stdGeneCount_2_2,meanGeneCount_2_3,stdGeneCount_2_3,meanGeneCount_3_1,stdGeneCount_3_1,meanGeneCount_3_2,stdGeneCount_3_2,meanGeneCount_3_3,stdGeneCount_3_3\n");
 	//fprintf(f, "time,numCells,Ga,stdGa,phase1,phase2,phase3,meanGene1,stdGene1,meanGene2,stdGene2,meanGene3,stdGene3\n");
+	/*
 	meanPhases = getMeanPhase(model);
 	fprintf(f, "%f,", model->t);
 	fprintf(f, "%d,", model->cellPopulation->numCells);
@@ -1810,7 +1924,7 @@ int runInjection(Model * model,
 	fprintf(f, "%f,", (double)meanGene3);
 	fprintf(f, "%f", (double)getStdGeneCount(model, model->cellPopulation->modelGeneLocations[2]/100.0, 1, meanGene3));
 	fprintf(f, "\n");
-
+	*/
 
 	int count = 0;
 	recalculateVolumeAddition(model, totalVolumes, lenTotalV, count);
@@ -1927,6 +2041,7 @@ int runInjection(Model * model,
 			fprintf(f, "\n");
 		}
 		*/
+		/*
 		if(fmod(roundf(100*model->t)/100,1.0)==0)
 		{
 			meanPhases = getMeanPhase(model);
@@ -1957,6 +2072,7 @@ int runInjection(Model * model,
 			//printf("%f", (double)meanPhases[2]);
                         //printf("\n");
 		}
+		*/
 	}
 	//fclose(f);
 	//printf("\n");
@@ -1965,8 +2081,19 @@ int runInjection(Model * model,
 	return model->stop;
 }
 
+/**
+ * @brief Run the model assuming exponential growth
+ *
+ * Run the model assuming Malthusian growth starting from a single cell to the targetCellCount. Maximal execution time is made to avoid infinite loop. 
+ *
+ * @param model Model object
+ * @param maximalExecTime Maximal execution time of the simulation
+ * @param targetCellCount Target cell number for the simulation
+ * @return Error handling integer
+ */
 int runExpo(Model * model, float maximalExecTime, int targetCellCount)
 {	
+	/*
         float * meanPhases;
         FILE *f1 = fopen("cell0.csv", "w");
         if(f1==NULL)
@@ -1974,8 +2101,9 @@ int runExpo(Model * model, float maximalExecTime, int targetCellCount)
                 printf("Error opening file!\n");
                 exit(1);
         }
+	*/
 	//fprintf(f, "time,numCells,Ga,stdGa,oriC,stdOriC,chromNum,stdChromNum,meanV,stdV,totalV,divVol,stdDivVol\n");
-	fprintf(f1, "time,Ga,chromNum,oriC,V,p1,p2,p3\n");
+	//fprintf(f1, "time,Ga,chromNum,oriC,V,p1,p2,p3\n");
 	//fprintf(f, "time,numCells,Ga,stdGa,oriC,stdOriC,chromNum,stdChromNum,meanV,stdV,totalV\n");
 	//fprintf(f1, "time,Ga,oriC,chromNum,tau,V\n");
 	//fprintf(f, "time,numCells,Ga,stdGa,phase1,phase2,phase3,meanGene1,stdGene1,meanGene2,stdGene2,meanGene3,stdGene3\n");
@@ -2031,6 +2159,7 @@ int runExpo(Model * model, float maximalExecTime, int targetCellCount)
                 fprintf(f, "\n");
                 //fprintf(f1, "[");
 		*/
+		/*
 		if(model->cellPopulation->cellArray[0].isDead==false)
 		{
 			if(fmod(roundf(100*model->t)/100,1.0)==0)
@@ -2051,6 +2180,7 @@ int runExpo(Model * model, float maximalExecTime, int targetCellCount)
                 {
                         printf("WARNING: Cell 0 is dead\n");
                 }
+		*/
 		/*
 		*/
 		/*
@@ -2093,6 +2223,14 @@ int runExpo(Model * model, float maximalExecTime, int targetCellCount)
 	return model->stop;
 }
 
+/**
+ * @brief Run the model where with this function a single time step is taken
+ *
+ * Every time this function is called it takes a single time step as defined with dt. Designed to be externally controlled (such as the python wrapper)
+ *
+ * @param model Model object
+ * @return Error handling integer
+ */
 int oneTimeStep(Model * model)
 {	
 	model->t += model->dt;
@@ -2108,6 +2246,13 @@ int oneTimeStep(Model * model)
 //##########################################################################################################
 //############################################# MAIN #######################################################
 //##########################################################################################################
+/**
+ * @brief Main function
+ *
+ * Main function 
+ *
+ * @return Error handling integer
+ */
 int main()
 {
 	float Vi = 0.9;

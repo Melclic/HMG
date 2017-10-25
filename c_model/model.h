@@ -1,5 +1,5 @@
 /*
- *   libHMG - Individual based model of the a bacterial population
+ *   libHMG - Individual based model a bacterial population
  *   Copyright (C) 2017  Melchior du Lac
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -143,10 +143,10 @@ int getDistPrev_Vb(Model * model, float * dist_Vb);
 
 int getDistPrev_a(Model * model, float * dist_a);
 
-float getStdVa(Model * model, float Vav);
+float getStdVa(Model * model);
 
 float getMeanTau(Model * model);
 
-float getStdTau(Model * model, float TauAv);
+float getStdTau(Model * model);
 
 #endif

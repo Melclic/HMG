@@ -1,5 +1,5 @@
 /*
- *   libHMG - Individual based model of the a bacterial population
+ *   libHMG - Individual based model of a bacterial population
  *   Copyright (C) 2017  Melchior du Lac
  *
  *   This program is free software; you can redistribute it and/or modify

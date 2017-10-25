@@ -1,5 +1,5 @@
 /*
- *   libHMG - Individual based model of the a bacterial population
+ *   libHMG - Individual based model of a bacterial population
  *   Copyright (C) 2017  Melchior du Lac
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -20,9 +20,7 @@
 /**
 * @file cell.c
 *
-* Contains all the functions that are related to the growth of the cell and chromosome. Includes the replication of the cell, its division into mother and daughter cell. Handles the growth of the chromosomes by setting growing all the replication forks and duplicating them once they have finiched replicating themselves. This also includes the implementation of recA related degradation of full chromosomes and the replicating strand if the chromosme experiences DNA damage.
-*
-* Implemented the eclipse period; i.e, inhibits the start of a new replication cycle until a minimal distance is reached between two replicating chromosomes 
+* Contains all the functions that are related to the growth of the cell and chromosome. Includes the replication of the cell, its division into mother and daughter cell. Handles the growth of the chromosomes by setting growing all the replication forks and duplicating them once they have finiched replicating themselves. This also includes the implementation of recA related degradation of full chromosomes and the replicating strand if the chromosme experiences DNA damage. Includes an implementation of the eclipse period; i.e, inhibits the start of a new replication cycle until a minimal distance is reached between two replicating chromosomes 
 *
 * @version 1.0
 * @author Melchior du Lac
@@ -55,6 +53,15 @@ int NUM_MODELSPECIES = 15;
 int NUM_MODELGENES = 3;
 
 //################################ PRIVATE FUNCTIONS #############################
+/**
+ * @brief Debug a single cell
+ *
+ * Private method used to print the parameters of a cell in the array
+ *
+ * @param cellArray cellPopulation object
+ * @param index Location of the cell of interest in the array
+ * @return void
+ */
 void cDebug(Cell * cellArray, int index)
 {
         if(cellArray[index].isDead==false)
@@ -222,13 +229,13 @@ int clearPlasmid(Cell * cellArray, int index, int i)
 /**
 * @brief Reorganise the chromosome of chromArray
 *
-* TODO: remove this function, and implement the queue
 * Loop forward through all the chromosome in the chromArray and if an empty position is detected reverse loop through it and find the next chromosome and swap the poisitions
 *
 * @param cellArray Array containg all the cells
 * @param index Position of the cell of interest in the cellArray
 * @return Error handling integer
 */
+//TODO: remove this function, and implement the queue
 int reorganiseChromosomes(Cell * cellArray, int index)
 {
 	int i, y;
@@ -406,6 +413,10 @@ int constructCell(Cell * cellArray, int index)
 * @param Vi Critical volume
 * @param Vi_plasmid Plasmid critical volume
 * @param ViNoise Critical volume Gaussian standard deviation
+* @param Va Volume at time a
+* @param VaNoise Volume at time a Gaussian standard deviation
+* @param modelInitialSpecies GSL model species input
+* @param modelInitialParams GSL model parameters input
 * @param a Age of the cell (not used. Future application involves if this value >0.0 calculate the DNA content and segragation)
 * @return Error handling integer
 */

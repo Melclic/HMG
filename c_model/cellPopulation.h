@@ -1,5 +1,5 @@
 /*
- *   libHMG - Individual based model of the a bacterial population
+ *   libHMG - Individual based model of a bacterial population
  *   Copyright (C) 2017  Melchior du Lac
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -59,7 +59,7 @@ typedef struct CELL_POPULATION
 	int numModelParams; /**< Number of params for the modelInitialsParams*/
 	int numModelSpecies; /**< Number of species for the modelInitialSpecies array*/
 	int numModelGenes; /**< Number of species for the modelInitialSpecies array*/
-	float tau;
+	float tau; /**< cell doubling time (min) */
 	float C1; /**< functional form of the replication rate (C)*/
 	float C2; /**< functional form of the replication rate (C)*/
 	float C3; /**< functional form of the replication rate (C)*/
