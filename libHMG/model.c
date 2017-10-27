@@ -733,7 +733,7 @@ float getMeanOriC(Model * model)
 * @param model Model object
 * @return float standard deviation of oriC
 */
-float getStdOriC(Model * model, float meanOriC)
+float getStdOriC(Model * model)
 {
 	float meanOriC = getMeanOriC(model);
 	float deviation = 0.0;
@@ -1036,6 +1036,28 @@ float getStdPa(Model * model)
 }
 
 //################################## V #############################
+
+/**
+ * @brief Getter of sum of population volume
+ *
+ * Loops through all members of the population and appends their volume
+ *  
+ * @param model Model object
+ * @return Total volume
+ */
+double getTotalVolume(Model * model)
+{
+	double totalVolumes = 0.0;
+	int i;
+	for(i=0; i<model->cellPopulation->maxCells; i++)
+	{
+		if(model->cellPopulation->cellArray[i].isDead==false)
+		{
+		totalVolumes += model->cellPopulation->cellArray[i].Va;
+		}
+	}
+	return totalVolumes;
+}
 
 /**
 * @brief Getter of mean volume of the population
@@ -2401,4 +2423,4 @@ int main()
 
 	cleanModel(model);
 	return 0;
-
+}
