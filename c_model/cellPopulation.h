@@ -34,6 +34,12 @@
 #include "utility.h"
 #include "inputModel.h"
 
+/**
+ * @brief Cell population object
+ *
+ * Cell population object containing all the parameters of the population of cells. Includes all the default values and population level parameters before they are assigned to the individual cells in the model with typically Gaussian noise assigned to them. Also contains the array of cells in the nmodel.
+ *
+ */
 typedef struct CELL_POPULATION
 {
 	int maxCells; /**< max number of dead and alive cells available according to the dedicated RAM*/

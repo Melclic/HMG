@@ -1,5 +1,5 @@
 /*
- *   libHMG - Individual based model of the a bacterial population
+ *   libHMG - Individual based model of a bacterial population
  *   Copyright (C) 2017  Melchior du Lac
  *
  *   This program is free software; you can redistribute it and/or modify
@@ -20,7 +20,7 @@
 /**
 * @file utility.c
 *
-* Contains a random assortment of functions that are used throughout the program, such as random number generator and calculation functions.
+* Contains a random assortment of functions that are used throughout the program, such as random number generators.
 *
 * @version 1.0
 * @author Melchior du Lac
@@ -37,8 +37,12 @@
 #define M_PI 3.14159265358979323846
 
 /**
-* @brief Based on the adder model, we calculate the volume of the cell at division and use it as a rule to dictate how the cells are growing
+* @brief EXPERIMENTAL: size at division calculator based on the adder model of growth
 *
+* EXPERIMENTAL: Based on the adder model, we use the doubling rate of the cell and calculate the volume of the cell at division and use it as a rule to dictate how the cells are growing
+*
+* @param tau Doubling rate
+* @return Volume at division
 **/
 float adderDivVol(float tau)
 {
@@ -146,9 +150,9 @@ double normalDistRandn(double mu, double sigma)
 }
 
 /**
-* @brief Exponential distribution population parameters based of growth rate (UNSUSED)
+* @brief UNUSED: Exponential distribution population parameters based of growth rate (UNSUSED)
 *
-* UNUSED. Return parameters that are shared with evevry member of a population (based on specific growth rate). Note that this should be used for EXPONENTIAL growth only.
+* UNUSED: Return parameters that are shared with evevry member of a population (based on specific growth rate). Note that this should be used for EXPONENTIAL growth only.
 *
 * @param mu Intantaneous growth rate
 * @param globalParam Empty array (size 3) of the return parameters (C, D, Vi)
@@ -230,9 +234,9 @@ int globalParameters(double mu, double * globalParam)
 }
 
 /**
-* @brief Calculate the individual cells parameters such as DNA content and replication fork timers based assuming Matlhusian growth (UNUSED)
+* @brief UNUSED: Calculate the individual cells parameters such as DNA content and replication fork timers based assuming Matlhusian growth (UNUSED)
 *
-* UNUSED. Given the replication time (C), the segregation time (D), the critical volume (Vi), the doubling rate of the cell (tau) and the age of the cell (a); initiate the cell by calculating the number of replication forks, the resulting DNA contant, and segregation timer. Based on the calculation from Abner et al.
+* UNUSED: Given the replication time (C), the segregation time (D), the critical volume (Vi), the doubling rate of the cell (tau) and the age of the cell (a); initiate the cell by calculating the number of replication forks, the resulting DNA contant, and segregation timer. Based on the calculation from Abner et al.
 *
 * @param tau Doubling rate
 * @param C Replication time
@@ -388,7 +392,7 @@ double * cell_parameters(double tau, double C, double D, double a, double Vi)
 }
 
 /**
-* @brief Calculate individual cells number of replication timers and their times (UNUSED)
+* @brief UNUSED: Calculate individual cells number of replication timers and their times
 *
 * UNUSED. Given the replication time (C), the segregation time (D), the critical volume (Vi), the doubling rate of the cell (tau) and the maximal possible replication timers  (this should be determined based on the observable fastest growth rate of the species), we calculate the number of replication forks and their times. 
 *

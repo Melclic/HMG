@@ -32,15 +32,14 @@
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
-#include <time.h> //<- only for debugging
+#include <time.h>
 #include <stdbool.h>
 
 #include "cell.h"
 #include "cellPopulation.h"
 #include "model.h"
 #include "utility.h"
-
-#include "inputModel.h" //<-- tmp
+#include "inputModel.h"
 
 
 //FILE *f; <---- tmp need to find a better way to output this instead of hardcoding it
@@ -2383,15 +2382,15 @@ int main()
 	runExpo(model, maxExecTime, targetCellCount);
 	
 	float oriCav = getMeanOriC(model);
-	float oriCstd = getStdVa(model, oriCav);
+	float oriCstd = getStdVa(model);
 	float Vav = getMeanVa(model);
-	float Vstd = getStdVa(model, Vav);
+	float Vstd = getStdVa(model);
 	float TauAv = getMeanTau(model);
-	float TauStd = getStdTau(model, TauAv);
+	float TauStd = getStdTau(model);
 	float GaAv = getMeanGa(model);
-	float GaStd = getStdGa(model, GaAv);
+	float GaStd = getStdGa(model);
 	float PaAv = getMeanPa(model);
-	float PaStd = getStdPa(model, PaAv);
+	float PaStd = getStdPa(model);
 
 	printf("V: %f (%f)\n", Vav, Vstd);
 	printf("OriC: %f (%f)\n", oriCav, oriCstd);

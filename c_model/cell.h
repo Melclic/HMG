@@ -65,8 +65,9 @@ Changed the dynamic memory allocation of the replication timers, Chrom Obj, and 
 */
 typedef struct PLASMID
 {
-	float replicationTimers[2];
-	int oriC;
+	float replicationTimers[2]; /**< Replication timers for the pair of replication forks*/
+	//TODO: because this can either be 1 or 2, change to either boolean type or define new type for this particular case to save memory
+	int oriC; /**< Number of origin of replications (should be either 1 or 2)*/
 } Plasmid;
 
 /**
@@ -83,8 +84,7 @@ typedef struct CHROM
 	//TODO: check to see if the 64 number threshold is ever reached
 	//float replicationTimers[7][64][2]; 
 	//float replicationTimers[6][32][2]; 
-	float replicationTimers[LOG2_MAX_REP_TIMERS][MAX_CHROM][2]; 
-	/**< 3D array containing all the potential origin of replications. First dimension (default size = 7) represents the the natural log of the maximal number of replication forks (note that this is arbitrary). Second dimension is the total number of replication forks. The last dimension is the pair of replication forks since the two may be stocastic.*/
+	float replicationTimers[LOG2_MAX_REP_TIMERS][MAX_CHROM][2]; /**< 3D array containing all the potential origin of replications. First dimension (default size = 7) represents the the natural log of the maximal number of replication forks (note that this is arbitrary). Second dimension is the total number of replication forks. The last dimension is the pair of replication forks since the two may be stocastic.*/
 	//WARNING: Rememember that this is a waste of memory. Only a better solution if memory is not an issue and speed is more important	
 	int oriC; /**< Number of oriC on the chromosome*/
 	int repForks; /**< Number of replication forks on the chromosome*/
@@ -93,14 +93,16 @@ typedef struct CHROM
 
 /**
 * @brief Structure of the cell
+* 
+* Object structure of the cell containing all the parameters of the cell. Includes the GSL objects for the simulation
 *
 */
 typedef struct CELL
 {
 	//previous state of the cell
-	float prev_sum_a; /**< previous complete duplication time (to test if the individual cells doubling rate)*/
-	float prev_newbornVol;
-	float prev_divisionVol;
+	float prev_sum_a; /**< Previous complete duplication time (to test if the individual cells doubling rate)*/
+	float prev_newbornVol; /**< Previous newborn volume of the cell */
+	float prev_divisionVol; /**< Previous division volume of the cell*/
 
 	float Vadded; /**< Current added size of the model*/
 	float Vdelta; /**< Total mass to be added*/
@@ -125,7 +127,7 @@ typedef struct CELL
 	int totalRepForks; /**< Total number of replication forks. TODO: These two are essentially the same (check). Remove one*/
 	int numChrom; /**< Total number of chromosomes*/
 	int numPlasmid; /**< Total number of chromosomes*/
-	float injectionDeviation;
+	float injectionDeviation; /**< Gaussian deviation from the injection growth method*/
 	//float divVol;
  	Chrom chromArray[MAX_CHROM]; /**< Array of struct for chromosome (default size = 64). TODO: make this dynamic*/
  	Plasmid plasmidArray[MAX_PLASMID]; /**< Array of struct for Plasmid object TODO: make this a dynamic array that must be initialised by the constructers */
@@ -140,6 +142,7 @@ typedef struct CELL
 	//float mu; /**< Cell exponential instantaneous growth rate. Note redundant?*/
 	bool isFrozen; /**< Boolean type parameter that flags if the cell is frozen due to reaching its maximal chromosome number. Note: Redundant?*/
 	// array of the return parameters of the model function
+	// TODO: do not hardcode the size of these
 	double modelParams[8]; /**< Array of parameters of the model*/ //TODO: have a check that the size of the model is correct
 	double modelSpecies[15]; /**< Model parameters*/ //TODO: this is a stupid way of implementing the storage of the model parameters, since the user must know the location of the paramters that represent the copy number of the gene in question. Better to have it as an object.
 	int modelSumGenes[3]; /**< Number of genes for the cell based on the cellPopulation modelGeneLocations*/
@@ -148,8 +151,8 @@ typedef struct CELL
 	//double modelSpecies[NUM_MODELSPECIES+1]; /**< Model parameters*/ //TODO: this is a stupid way of implementing the storage of the model parameters, since the user must know the location of the paramters that represent the copy number of the gene in question. Better to have it as an object.
 	//int modelSumGenes[NUM_MODELGENES+1]; /**< Number of genes for the cell based on the cellPopulation modelGeneLocations*/
 	//int modelPrevSumGenes[NUM_MODELGENES+1]; /**< When calculating the copy number amount, there is a need to determine if the copy number has changed for the cell*/
-	gsl_odeiv2_system sys;
-	gsl_odeiv2_driver * driver;
+	gsl_odeiv2_system sys; /**< GSL system object*/
+	gsl_odeiv2_driver * driver; /**< GSL driver object*/
 } Cell;
 
 int constructCell(Cell * cellArray, int index);

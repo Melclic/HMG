@@ -521,6 +521,9 @@ int initialiseCell(Cell * cellArray,
 * @param divNoise Division standard deviation volume ration distribution between mother and daughter cell 
 * @param partRatio Chromosome partition mean ration between mother and daughter cell (default=0.5)
 * @param partNoise Chromosome partition standard deviation between mother and daughter cell
+* @param modelGeneParamsLocations Location of the parameters in the GSL parameter array that determines the gene number
+* @param modelGeneLocations Location of the genes on the chromsome
+* @param modelGeneLRPos Determine if the gene is on the left or right hand side of the oriC
 * @param dt Time step
 * @return Error handling integer
 */
@@ -871,6 +874,8 @@ int divideCell(Cell * cellArray,
 * @param isDrugTreat Boolean type parameter that determines if the cell is experiencing drug treatment. If true then stop the initiation of new replication forks, but complete the ones that are currently open.
 * @param chromDeg Probability parameter that determines if the chromosomes experiences catastrophic DNA damage that RecA cannot rescue. If larger than random number pooled from Gaussian distribution with mean 0 and standard deviation of 1.
 * @param repForkDeg Probability parameter that determines if the replicating strand experiences catastrophic DNA damage that RecA cannot rescue. If larger than random number pooled from Gaussian distribution with mean 0 and standard deviation of 1.
+* @param modelGeneLocations Location of the genes on the chromsome
+* @param modelGeneLRPos Determine if the gene is on the left or right hand side of the oriC
 * @param numCells Total number of cells in the simulation
 *
 * @return Error handling integer
@@ -1475,11 +1480,10 @@ int growPlasmids(Cell * cellArray, int index, float dt)
 * @param index Position of the cell of interest in the cellArray
 * @param newIndex Position of an empty position in the cellArray for potential new cell
 * @param tau Exponential doubling rate
-* @param C Replication time
 * @param cNoise Replication Gaussian standard deviation
-* @param D Segregation time
 * @param dNoise Segregation Gaussian standard deviation
 * @param Vi Critical volume
+* @param Vi_plasmid Plasmid critical mass
 * @param ViNoise Critical volume Gaussian standard deviation
 * @param divRatio Division mean volume ratio distribution between mother and daughter cell (default=0.5)
 * @param divNoise Division standard deviation volume ration distribution between mother and daughter cell 
@@ -1488,15 +1492,23 @@ int growPlasmids(Cell * cellArray, int index, float dt)
 * @param chromDeg Probability parameter that determines if the chromosomes experiences catastrophic DNA damage that RecA cannot rescue. If larger than random number pooled from Gaussian distribution with mean 0 and standard deviation of 1.
 * @param repForkDeg Probability parameter that determines if the replicating strand experiences catastrophic DNA damage that RecA cannot rescue. If larger than random number pooled from Gaussian distribution with mean 0 and standard deviation of 1.
 * @param numCells Total number of cells in the simulation
+* @param C1 One-phase exponential function replication time first term
+* @param C2 One-phase exponential function replication time second term
+* @param C3 One-phase exponential function replication time third term
+* @param D1 One-phase exponential function segregation time first term
+* @param D2 One-phase exponential function segregation time second term
+* @param D3 One-phase exponential function segregation time third term
 * @param dt Time step
 * @param volumeAdd If injection growth populaion mean volumetric growth
+* @param modelGeneParamsLocations Location of the parameters in the GSL parameter array that determines the gene number
+* @param modelGeneLocations Location of the genes on the chromsome
+* @param modelGeneLRPos Determine if the gene is on the left or right hand side of the oriC
 * @param isDrugTreat Boolean type parameter that determines if the cell is experiencing drug treatment. If true then stop the initiation of new replication forks, but complete the ones that are currently open.
-*
-*        //float trad_C = 43.2*(1.0+(4.86*exp(-4.5/db_h)));
-*        //float trad_D = (18.5+4.5)*(1.0+(exp(-4.5/db_h)));
 *
 * @return Error handling integer
 */
+//float trad_C = 43.2*(1.0+(4.86*exp(-4.5/db_h)));
+//float trad_D = (18.5+4.5)*(1.0+(exp(-4.5/db_h)));
 int growCell(Cell * cellArray,
 		int index,
 		int newIndex,
