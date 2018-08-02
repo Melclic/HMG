@@ -32,9 +32,10 @@
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
-#include <time.h>
+//#include <time.h>
 #include <stdbool.h>
 
+#include "mpi.h"
 #include "cell.h"
 #include "cellPopulation.h"
 #include "model.h"
@@ -98,18 +99,72 @@ int organiseCellArray(Model * model)
 /**
 * @brief Initiate a model object and all the downstream structures and cellArray.
 *
-* Initiate a model object and all the downstream structures and cellArray. This includes all the dynamic memory allocation that is only freed when cleanModel() function is called. Initiate and return a model and seed the random start 
+* Initiate a model object and all the downstream structures and cellArray. This includes all the dynamic memory allocation that is only freed when cleanModel() function is called. Initiate and return a model and seed the random start. This is an MPI function where the model parameter returned is a shared memory allocation for all the nodes. This reduces the unecessary duplication of memory.  
 *
 * @param maxCells Maximal number of cells that simulator may have
+* @param nodecomm Communication object that (that is basically WORLD) necessary to have shared memory
 * @return Model object
 */
-Model * initModel(int maxCells)
+Model * initModel(int maxCells, MPI_Win win, MPI_Comm nodecomm, int noderank)
 {
-	Model * model = (Model *)(calloc(1, sizeof(Model)));
-	model->cellPopulation = (CellPopulation *)(calloc(1, sizeof(CellPopulation)));
-	model->cellPopulation->maxCells = maxCells;
+        Model *model;
+        if(noderank==0)
+        {
+                MPI_Win_allocate_shared(1*sizeof(Model), sizeof(Model), MPI_INFO_NULL, nodecomm, &model, &win);
+                MPI_Win_allocate_shared(1*sizeof(CellPopulation), sizeof(CellPopulation), MPI_INFO_NULL, nodecomm, &model->cellPopulation, &win);
+		MPI_Win_allocate_shared(maxCells*sizeof(Cell), sizeof(Cell), MPI_INFO_NULL, nodecomm, &model->cellPopulation->cellArray, &win);
+		model->cellPopulation->maxCells = maxCells;
+        }
+        //not sure why we need to call this for non-root process since nothing is allocated
+        else
+        {
+                MPI_Win_allocate_shared(0, sizeof(Model), MPI_INFO_NULL, nodecomm, &model, &win);
+                MPI_Win_allocate_shared(0, sizeof(CellPopulation), MPI_INFO_NULL, nodecomm, &model->cellPopulation, &win);
+		MPI_Win_allocate_shared(0, sizeof(Cell), MPI_INFO_NULL, nodecomm, &model->cellPopulation->cellArray, &win);
+        }
+
+        //##################### ERROR HANDLING ###################################
+        //RMA unified, if public and private window are logically identical
+        //Get attribute cached on an MPI window object 
+        int flag;
+        int *RMAmodel;
+        MPI_Win_get_attr(wintable, MPI_WIN_MODEL, &RMAmodel, &flag);
+        //Check that there are no errors with the window
+        if(1!=flag)
+        {
+                printf("Attribute MPI_WIN_MODEL not defined\n");
+        }
+	else
+        {
+                //Here we make sure that the memory is unified
+                if(MPI_WIN_UNIFIED==*RMAmodel)
+                {
+                        if(rank==0)
+                        {
+                                printf("Memory model is MPI_WIN_UNIFIED\n");
+                        }
+                }
+                //If not exit
+                else
+                {
+                        if(rank==0)
+                        {
+                                printf("Memory model is *not* MPI_WIN_UNIFIED\n");
+                        }
+                        MPI_Finalize();
+                        //return 1;
+                }
+        }
+        //#############################################################################
+
+        if(noderank!=0)
+	{
+                MPI_Aint winsize;
+                int windisp;
+                MPI_Win_shared_query(wintable, 0, &winsize, &windisp, &cellArray);
+	}
+
 	//############# cell array ##############
-	model->cellPopulation->cellArray = (Cell*)(calloc(model->cellPopulation->maxCells, sizeof(Cell)));
 	//check that the assignement of the dynamic array is successfull
 	if(model->cellPopulation->cellArray==NULL)
 	{
@@ -154,11 +209,6 @@ Model * initModel(int maxCells)
 * @param D1 One-phase exponential function segregation time first term
 * @param D2 One-phase exponential function segregation time second term
 * @param D3 One-phase exponential function segregation time third term
-* @param modelInitialParams GSL model initial parameters 
-* @param modelInitialSpecies GSL model initial species
-* @param modelGeneLocations Relative position of the genes on the chromosome for the GSL model
-* @param modelGeneParamsLocations Position of the parameter that dictates the copy number influence on the expression of the GSL model
-* @param modelGeneLRPos Position of the genes on either the left hand (0) or right hand (1) side of the chromosome 
 * @param dt time step in min-1
 *
 * @return Error handling integer
@@ -178,37 +228,34 @@ int setModel(Model * model,
 		float partNoise,
 		float chromDeg, 
 		float repForkDeg, 
+		float simAge,
 		float C1,
 		float C2,
 		float C3,
 		float D1,
 		float D2,
 		float D3,
-		double * modelInitialParams,
-		double * modelInitialSpecies,
-		float * modelGeneLocations,
-		int * modelGeneParamsLocations,
-		int * modelGeneLRPos,
+		int nodesize,
 		float dt)
 {
-	//make for a tmp file to write to
-	/*
-	char fileName[17];
-	sprintf(fileName, "phases_su_%d.csv", (int)modelGeneLocations[0]);
-        f = fopen(fileName, "w");
-        if(f==NULL)
-        {
-                printf("Error opening file!\n");
-                exit(1);
-        }
-	fprintf(f, "time,numCells,Ga,stdGa,phase1,phase2,phase3,meanGene1,stdGene1,meanGene2,stdGene2,meanGene3,stdGene3\n");
-	*/
-
 	model->dt = dt;
 	model->t = 0.0;
 	model->stop = 0;
-	
-	//TODO: kind of stupid, should be able to tell him how many cells i want to inoculate with random number
+	model->nodeSize = nodesize;
+
+	model->cellPopulation->emptyCellPos = (bool *)malloc(model->cellPopulation->maxCells*sizeof(bool));
+	model->cellPopulation->nodeNumCells = (int *)malloc(nodesize*sizeof(int));
+	model->cellPopulation->nodeFreeCell = (int *)malloc(nodesize*sizeof(int));
+	model->cellPopulation->nodeFinisedCells = (int *)malloc(nodesize*sizeof(int));
+
+	model->cellPopulation->nodeStartEnd = (int **)malloc(nodesize*sizeof(int *));
+	for(int i=0; i<nodesize; i++)
+	{
+		model->cellPopulation->nodeStartEnd[i] = (int *)malloc(2*sizeof(int));
+	}
+
+	model->cellPopulation->simAge = simAge;
+
 	model->cellPopulation->numCells = 1;
 	model->cellPopulation->freeIndex = 1;
 	model->cellPopulation->indexArray = 1;
@@ -233,65 +280,6 @@ int setModel(Model * model,
 	model->cellPopulation->chromDeg = chromDeg;
 	model->cellPopulation->repForkDeg = repForkDeg;	
 	model->cellPopulation->numFrozenCells = 0;	
-	memcpy(model->cellPopulation->modelInitialParams, modelInitialParams, sizeof(double)*8); //TODO: don't make this to be hardcoded
-	memcpy(model->cellPopulation->modelInitialSpecies, modelInitialSpecies, sizeof(double)*15); //TODO: same
-	memcpy(model->cellPopulation->modelGeneLocations, modelGeneLocations, sizeof(float)*3); //TODO: same
-	memcpy(model->cellPopulation->modelGeneParamsLocations, modelGeneParamsLocations, sizeof(int)*3); //TODO: same 
-	memcpy(model->cellPopulation->modelGeneLRPos, modelGeneLRPos, sizeof(int)*3); //TODO: same
-	/*
-	memcpy(model->cellPopulation->modelInitialParams, modelInitialParams, sizeof(double)*(NUM_MODELPARAMS+1));
-	memcpy(model->cellPopulation->modelInitialSpecies, modelInitialSpecies, sizeof(double)*(NUM_MODELSPECIES+1));
-	memcpy(model->cellPopulation->modelGeneLocations, modelGeneLocations, sizeof(float)*(NUM_MODELGENES+1));
-	memcpy(model->cellPopulation->modelGeneParamsLocations, modelGeneParamsLocations, sizeof(int)*(NUM_MODELGENES+1));
-	memcpy(model->cellPopulation->modelGeneLRPos, modelGeneLRPos, sizeof(int)*(NUM_MODELGENES+1));
-	*/
-
-	//############################ libsbmlsim ##################
-	
-	  if (cellArray[index].d == NULL)
-	{
-            //return create_myResult_with_errorCode(Unknown);
-            return 1;
-	}
-          err_num = SBMLDocument_getNumErrors(cellArray[index].d);
-          if (err_num > 0)
-	  {
-		  const XMLError_t *err = (const XMLError_t *)SBMLDocument_getError(cellArray[index].d, 0);
-           if (XMLError_isError(err) || XMLError_isFatal(err))
-	   {
-              XMLErrorCode_t errcode = XMLError_getErrorId(err);
-              switch (errcode) 
-	      {
-                case XMLFileUnreadable:
-                  cellArray[index].rtn = create_myResult_with_errorCode(FileNotFound);
-                  break;
-                case XMLFileUnwritable:
-                case XMLFileOperationError:
-                case XMLNetworkAccessError:
-                  cellArray[index].rtn = create_myResult_with_errorCode(SBMLOperationFailed);
-                  break;
-                case InternalXMLParserError:
-                case UnrecognizedXMLParserCode:
-                case XMLTranscoderError:
-                  cellArray[index].rtn = create_myResult_with_errorCode(InternalParserError);
-                  break;
-                case XMLOutOfMemory:
-                  cellArray[index].rtn = create_myResult_with_errorCode(OutOfMemory);
-                  break;
-                case XMLUnknownError:
-                  cellArray[index].rtn = create_myResult_with_errorCode(Unknown);
-                  break;
-                default:
-                  cellArray[index].rtn = create_myResult_with_errorCode(InvalidSBML);
-                  break;
-              }
-              SBMLDocument_free(model->cellPopulation->d);
-              cellArray[index].rtn;
-              return 1;
-            }
-          }
-          model->cellPopulation->m = SBMLDocument_getModel(d);
-
 	return 0;
 }
 
@@ -306,14 +294,33 @@ int setModel(Model * model,
 */
 int inoculateModel(Model * model)
 {
-	int i;
-	for(i=0; i<model->cellPopulation->maxCells; i++)
+	//set the different node arrays with their corresponding values
+	int secSize = floor(model->cellPopulation->maxCells/(model->nodeSize-1));
+	for(int i=0; i<model->nodeSize-1; i++)
+	{
+		model->cellPopulation->nodeNumCells[i] = 0;
+		model->cellPopulation->nodeFreeCell[i] = secSize*i;
+		model->cellPopulation->nodeStartEnd[i][0] = secSize*i;
+		model->cellPopulation->nodeStartEnd[i][1] = secSize*(i+1); 
+		model->cellPopulation->nodeFinisedCells[i] = 0;
+	}
+	model->cellPopulation->nodeStartEnd[model->nodeSize][1] = model->cellPopulation->maxCells;
+
+	model->cellPopulation->nodeNumCells[0] = 1;
+	model->cellPopulation->nodeFreeCell[0] = 1;
+	for(int i=0; i<model->cellPopulation->maxCells; i++)
 	{
 		constructCell(model->cellPopulation->cellArray, i);
+		model->cellPopulation->emptyCellPos[i] = false;
 	}
 
-	for(i=0; i<model->cellPopulation->numCells; i++)
+	//here we can control how many cells we want to start with
+	//TODO: randomly set the cells based on the Cooper-Helmstetter model
+	for(int i=0; i<model->cellPopulation->numCells; i++)
 	{
+		//we do this this way in case this part is set randomly
+		model->cellPopulation->emptyCellPos[i] = true;
+
 		//if the input C time is input in minutes
 		//TODO: add error handling from the initialiseCell
 		if(model->cellPopulation->C2==-1.0)
@@ -322,7 +329,6 @@ int inoculateModel(Model * model)
 				    i,
 				    model->cellPopulation->tau,
 				    model->cellPopulation->C1,
-				    6646.0*model->cellPopulation->C1/4639221.0, //This is based on the size of the ColE1 in base pairs against the size of the chromosome in base pairs for a bacterial chromosome
 				    model->cellPopulation->cNoise,
 				    model->cellPopulation->D1,
 				    model->cellPopulation->dNoise,
@@ -342,7 +348,6 @@ int inoculateModel(Model * model)
 				    i,
 				    model->cellPopulation->tau,
 				    model->cellPopulation->C1*(1.0+(model->cellPopulation->C2*exp(-model->cellPopulation->C3/(model->cellPopulation->tau/60.0)))),
-				    6646.0*(model->cellPopulation->C1*(1.0+(model->cellPopulation->C2*exp(-model->cellPopulation->C3/(model->cellPopulation->tau/60.0)))))/4639221.0, //This is based on the size of the ColE1 in base pairs against the size of the chromosome in base pairs for a bacterial chromosome
 				    model->cellPopulation->cNoise,
 				    model->cellPopulation->D1*(1.0+(model->cellPopulation->D2*exp(-model->cellPopulation->D3/(model->cellPopulation->tau/60.0)))),
 				    model->cellPopulation->dNoise,
@@ -397,6 +402,7 @@ int cleanModel(Model * model)
 	model->cellPopulation->repForkDeg = 0.0;	
 	model->cellPopulation->numFrozenCells = 0;	
 	model->cellPopulation->numAnucleateCells = 0;
+	model->cellPopulation->simAge = 0.0;
 
 	model->cellPopulation->C1 = 0.0;
 	model->cellPopulation->C2 = 0.0;
@@ -408,17 +414,13 @@ int cleanModel(Model * model)
 	free(model->cellPopulation->totalVolumes);
         model->cellPopulation->lenTotalV = 0;
 
-	//ODE model parameters
-	model->cellPopulation->numModelParams = 0;
-        model->cellPopulation->numModelSpecies = 0;
-	model->cellPopulation->numModelGenes = 0;
-
 	free(model->cellPopulation);
 	model->cellPopulation = NULL;
 
         model->dt = 0.0;
         model->t = 0.0;
         model->stop = 0;
+	model->nodesize = 0;
 	
 	free(model);
 	model = NULL;
@@ -2149,38 +2151,190 @@ int runInjection(Model * model,
 	return model->stop;
 }
 
+int setAllCellSimAge(Model * model)
+{
+	for(int i=0; i<model->cellPopulation->maxCells; i++)
+	{
+		model->cellPopulatiom->cellArray[i].simAge = 0.0;
+		model->cellPopulation->cellArray[i].isSimAge = false;
+		model->cellPopilation->cellArray[i].isCounted = false;
+	}
+}
+
 /**
  * @brief Run the model assuming exponential growth
  *
  * Run the model assuming Malthusian growth starting from a single cell to the targetCellCount. Maximal execution time is made to avoid infinite loop. 
+ *
+ * WARNING: emptyCellPos has only been set for root node
  *
  * @param model Model object
  * @param maximalExecTime Maximal execution time of the simulation
  * @param targetCellCount Target cell number for the simulation
  * @return Error handling integer
  */
-int runExpo(Model * model, float maximalExecTime, int targetCellCount)
+int runExpo(Model * model, float maximalExecTime, int nodesize, int noderank)
 {	
-	/*
-        float * meanPhases;
-        FILE *f1 = fopen("cell0.csv", "w");
-        if(f1==NULL)
-        {
-                printf("Error opening file!\n");
-                exit(1);
-        }
-	*/
-	//fprintf(f, "time,numCells,Ga,stdGa,oriC,stdOriC,chromNum,stdChromNum,meanV,stdV,totalV,divVol,stdDivVol\n");
-	//fprintf(f1, "time,Ga,chromNum,oriC,V,p1,p2,p3\n");
-	//fprintf(f, "time,numCells,Ga,stdGa,oriC,stdOriC,chromNum,stdChromNum,meanV,stdV,totalV\n");
-	//fprintf(f1, "time,Ga,oriC,chromNum,tau,V\n");
-	//fprintf(f, "time,numCells,Ga,stdGa,phase1,phase2,phase3,meanGene1,stdGene1,meanGene2,stdGene2,meanGene3,stdGene3\n");
-	//printf("time,numCells,Ga,stdGa,phase1,phase2,phase3\n");
+	//Because of the nature of the simulation method, it is better to take "leaps" in time
+	//where the asynchornicity of MPI does not obstruct the actual simulated cell cycle asynchronicity
+	//means that we need to have different ways to return population measurements 
+
+	//actually for exponential growth the only thing to do is to send how long the cells are to run for
+	//or just to the window runs with 
+
+	//Need to loop a portion that is dependent on the noderank (and ignore root)
+	if(noderank==0)
+	{
+		setAllCellSimAge(model);
+		//while not all the cells have been finished in time --> basically take a leap in time for all the cells
+		//TODO set a global timer for the cells that is iterated even if dead
+		int finishedCells = 0;
+		while(finishedCells!=model->cellPopulation->numCells)
+		{
+			//now need to determine the location of an empty cell in cellArray
+			//the placement of wich should be dependent on the number of cells in each node numbers
+			//we receive -1 from the other nodes to signal that all the cells have finsihed their iterations
+			//	-> either the array is done and reported back here
+			//	-> or the individual cells are done and reported back here ## right now doing this one
+			if(recvMess==-1)
+			{
+				finishedCells += 1;
+			}
+			else
+			{
+				//find the smallest value in nodeNulCells to add the new cells
+				int smallest = 0;
+				for(int i=0; i<nodesize; i++)
+				{
+					if(nodeNumCells[i]<nodeNumCells[smallest])
+					{
+						smallest = i;
+					}
+				}
+				//find the poisition in the array with an empty cell in it
+				//check if the nodeFreeCell position is actually free and if not look for an empty position in the array section
+				int newCellPos = -1;
+				if(model->cellPopulation->cellArray[nodeFreeCell[smallest]].isDead==true)
+				{
+					newCellPos = nodeFreeCell[smallest];
+				}
+				else
+				{
+					for(int i=nodeStartEnd[smallest][0]; i<nodeStartEnd[smallest][1]; i++)
+					{
+						if(model->cellPopulation->cellArray[i].isDead==true)
+						{
+							newCellPos = i;
+							break;
+						}
+					}
+				}
+
+				MPI_Send(&newCellPos, 1, MPI_INT, Stat.MPI_SOURCE, tag, MPI_COMM_WORLD);
+
+				//need a contigency plan if the array is full
+				if(newCellPos==-1)
+				{
+					printf("WARNING (runExpo): There is no more space to add another cell\n");
+					MPI_Finalize(); //note sure if that is the correct way to exit
+					return 1;
+				}
+			}
+		}
+	}
+	else
+	{			
+		int count = 0;
+		clock_t begin = clock();
+		//TODO: remove model->stop and replace with traditional return parameter
+		while(model->stop==0 &&
+			model->cellPopulation->numCells<targetCellCount &&
+			model->cellPopulation->nodeNumCells[noderank-1]<model->cellPopulation->nodeFinishedCells)
+		{
+			model->t += model->dt;
+			model->stop = growCells(model->cellPopulation, 
+						model->dt, 
+						-1.0,
+						0);
+
+			if(model->stop==2)
+			{
+				printf("WARNING: Restrcting the number of cells\n");
+				randomRestrictNumCells(model, 2000);
+				model->stop = 0;
+			}
+			if(model->stop==1)
+			{
+				printf("ERROR: model->stop==1 (not sure why this is)\n");
+				break;
+			}
+			count += 1;
+		}
+				
+
+		int secSize = floor(model->cellPopulation->maxCells/(nodesize-1));
+		int endLoop = noderank*secSize;
+		if(noderank==nodesize-1)
+		{
+			endLoop = model->cellPopulation->maxCells;
+		}
+
+		model->t += model->dt;
+		model->stop = growCells(model->cellPopulation, 
+					model->dt, 
+					-1.0,
+					0);
+
+		if(model->stop==1)
+		{
+			printf("ERROR: model->stop==1 (not sure why this is)\n");
+			break;
+		}
+		if(model->stop==2)
+		{
+			printf("WARNING: Restricting the number of cells\n");
+			randomRestrictNumCells(model, 2000);
+			model->stop = 0;
+		}
+
+
+
+
+
+
+
+		
+		model->t += model->dt;
+		model->stop = growCells(model->cellPopulation, 
+					model->dt, 
+					-1.0,
+					0);
+
+		if(model->stop==2)
+		{
+			printf("WARNING: Restrcting the number of cells\n");
+			randomRestrictNumCells(model, 2000);
+			model->stop = 0;
+		}
+		if(model->stop==1)
+		{
+			printf("ERROR: model->stop==1 (not sure why this is)\n");
+			break;
+		}
+		count += 1;
+	}
+
+
+
+
+
+
+
+	//Question is if we are to send the looping in cellPopulation or do it here
 
 	int count = 0;
 	clock_t begin = clock();
 	while(model->stop==0 && model->cellPopulation->numCells<targetCellCount)
-	//while(model->stop==0 && model->t<1000.0)
 	{
 		model->t += model->dt;
 		model->stop = growCells(model->cellPopulation, 
@@ -2321,8 +2475,29 @@ int oneTimeStep(Model * model)
  *
  * @return Error handling integer
  */
-int main()
+int main(int argc, char **argv)
 {
+        //############# START MPI #############
+        MPI_Init(&argc, &argv);
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        int size;
+        MPI_Comm_size(MPI_COMM_WORLD, &size);
+        int tag = 1;
+        MPI_Status Stat;
+        MPI_Request request;
+        request = MPI_REQUEST_NULL;
+        MPI_Win win;
+        //####################################
+
+        //######## START THE NODES ###########
+        MPI_Comm nodecomm;
+        MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, rank, MPI_INFO_NULL, &nodecomm);
+        int nodesize, noderank;
+        MPI_Comm_size(nodecomm, &nodesize);
+        MPI_Comm_rank(nodecomm, &noderank);
+        //####################################
+
 	float Vi = 0.9;
 	float Vi_plasmid = 9999999.0;
 	float ViNoise = 5.0;
@@ -2337,24 +2512,16 @@ int main()
 	float chromDeg = 1000.0;
 	float repForkDeg = 1000.0;
 	float dt = 0.01;
-	int maxCells = 20000;
-	//float maxExecTime = 9999999.0;
+	int maxCells = 2000;
 	float maxExecTime = 1500.0;
-	//int targetCellCount = 5000;
 	int targetCellCount = 19500;
 	int restrictCellNumber = 5000;
 	float drugNoise = 3.3;
 	float tau = 60.0;
 	float maximalExecTime = 500.0;
 
-	/*
-	float C1 = 43.0;
-	float C2 = -1.0;
-	float C3 = -1.0;
-	float D1 = 23.0;
-	float D2 = -1.0;
-	float D3 = -1.0;
-	*/
+	float simAge = 10.0; //<< test, this is the leap in time that we are taking TODO: test how big to make this to make it more effecient
+
 	float C1 = 43.2;
 	float C2 = 4.86;
 	float C3 = 4.5;
@@ -2362,94 +2529,51 @@ int main()
 	float D2 = 4.86;
 	float D3 = 4.5;
 
-	float mu = log(2.0)/tau;
-	
-	//float db_h = (log(2)/(tau/60.0));
-	//float trad_C = 43.2*(1.0+(4.86*exp(-4.5/db_h)));
-	//float trad_D = 23.0*(1.0+(4.86*exp(-4.5/db_h)));
-	
-	//float C = 40.0;
-	//float D = 20.0;
-
-
-	//###### Disable the model ######
-	//double modelInitialParams[8] = {6.0, 1.0, 5.0, 100.0, 5.0, 100.0, 10.0, 20.0};
-	//Note that here we start with 10.0 copy numbers of each promoter
-	//double modelInitialSpecies[15] = {10.0, 0.0, 2.0, 8.0, 0.0, 
-	//				  10.0, 0.0, 8.0, 2.0, 0.0, 
-	//				  10.0, 0.0, 5.0, 5.0, 0.0};
-	//float modelGeneLocations[3] = {0.1*100.0, 0.5*100.0, 0.9*100.0};
-	
-	//int modelGeneParamsLocations[3] = {2, 7, 12};
-	//int modelGeneLRPos[3] = {1, 1, 1};
-
-	double modelInitialParams[8] = {6.0, 1.0, 5.0, 100.0, 5.0, 100.0, 10.0, 20.0};
-	double modelInitialSpecies[15] = {10.0, 0.0, 2.0, 8.0, 0.0,
-                                          10.0, 0.0, 8.0, 2.0, 0.0,
-                                          10.0, 0.0, 5.0, 5.0, 0.0};
-	//float modelGeneLocations[3] = {0.9*100.0, 0.9*100.0, 0.9*100.0};
-	float modelGeneLocations[3] = {0.1*100.0, 0.5*100.0, 0.9*100.0};
-	int modelGeneParamsLocations[3] = {2, 7, 12};
-        int modelGeneLRPos[3] = {1, 1, 1};
+	float mu = log(2.0)/tau;	
 
 	printf("InitModel\n");
-	Model * model = initModel(maxCells);
-	printf("SetModel\n");
-	setModel(model,
-                tau,
-                cNoise,
-                dNoise,
-                Vi,
-                Vi_plasmid,
-                ViNoise,
-                VaNoise,
-                chanceInit,
-                divNoise,
-                divRatio,
-                partRatio,
-                partNoise,
-                chromDeg,
-                repForkDeg,
-                C1,
-                C2,
-                C3,
-                D1,
-                D2,
-                D3,
-                modelInitialParams,
-                modelInitialSpecies,
-                modelGeneLocations,
-                modelGeneParamsLocations,
-                modelGeneLRPos,
-                dt);
-	printf("InoculateModel\n");
-	inoculateModel(model);
+	Model * model = initModel(maxCells, win, nodecomm, noderank);
 
-	//printf("runInjection\n");
-	/*	
-	int lenTotalV = 100001;
-	double od[100001] = {0.0};
-	od[0] = 0.001;
-	for(int i=0; i<100000; i++)
+	//should only be set a single time and so we are setting the rook process as the main one
+	if(noderank==0)
 	{
-		od[i+1] = od[i]*(1.0+(log(2.0)/tau)*dt);
-	}
-	double totalVolumes[100001] = {0.0};
-	for(int i=0; i<100001; i++)
-	{
-		totalVolumes[i] = (3.6*od[i])*pow(10.0, 9.0);
+		printf("SetModel\n");
+		setModel(model,
+			tau,
+			cNoise,
+			dNoise,
+			Vi,
+			Vi_plasmid,
+			ViNoise,
+			VaNoise,
+			chanceInit,
+			divNoise,
+			divRatio,
+			partRatio,
+			partNoise,
+			chromDeg,
+			repForkDeg,
+			simAge,
+			C1,
+			C2,
+			C3,
+			D1,
+			D2,
+			D3,
+			modelInitialParams,
+			modelInitialSpecies,
+			modelGeneLocations,
+			modelGeneParamsLocations,
+			modelGeneLRPos,
+			nodesize,
+			dt);
+		printf("InoculateModel\n");
+		inoculateModel(model);
 	}
 
-	runInjection(model,
-                        maximalExecTime,
-                        restrictCellNumber,
-                        totalVolumes,
-                        lenTotalV);
-	*/
-	
 	printf("runExpo\n");
-	runExpo(model, maxExecTime, targetCellCount);
-	
+	runExpo(model, maxExecTime, targetCellCount, noderank);
+
 	float oriCav = getMeanOriC(model);
 	float oriCstd = getStdVa(model);
 	float Vav = getMeanVa(model);

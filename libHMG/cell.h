@@ -33,14 +33,7 @@
 	-> Included the boolean datatype (stdbool.h) and smaller integer types (inttypes.h)
 */
 
-/*
-#include <gsl/gsl_errno.h>
-#include <gsl/gsl_matrix.h>
-#include <gsl/gsl_odeiv2.h>
-*/
 #include "inputModel.h"
-#include "libsbmlsim/libsbmlsim/libsbmlsim.h"
-
 
 #ifndef CELL_H
 #define CELL_H
@@ -53,13 +46,10 @@ Changed the dynamic memory allocation of the replication timers, Chrom Obj, and 
 //extern int MAX_CHROM; //<- 32
 //extern int MAX_PLASMID; //<- 2000
 //extern int LOG2_MAX_REP_TIMERS; //<- 6
-//extern int NUM_MODELPARAMS;
-//extern int NUM_MODELSPECIES;
-//extern int NUM_MODELGENES;
 
 #define MAX_CHROM 32
 #define LOG2_MAX_REP_TIMERS 6
-#define MAX_PLASMID 2000
+#define MAX_PLASMID 100
 
 /**
 * @brief Structure of the plasmid
@@ -107,18 +97,24 @@ typedef struct CELL
 	float prev_sum_a; /**< Previous complete duplication time (to test if the individual cells doubling rate)*/
 	float prev_newbornVol; /**< Previous newborn volume of the cell */
 	float prev_divisionVol; /**< Previous division volume of the cell*/
-	// ######## Sizer model
+
 	float Vadded; /**< Current added size of the model*/
 	float Vdelta; /**< Total mass to be added*/
 	float Vtarget; /**< Sizer model target*/
-	//######## Adder model
 	float D; /**< Timer segregation time*/
+
+
 	float segregationTimer; /**< Segregation timer*/
 	float segregationTimer2; /**< Segregation timer to be inherited */
 	//TODO: perhaps use this to increase the likelyhood of the cell dying
 	//float cellAge; /**< Total age of the cell (cumulative of independent cell cycles). TODO: comment out since only usefull if we are to implement age dependent cell death*/
+	
 	float a; /**< Cell internal clock is B+C+D. It it reset at every cell division, mother like duaghter*/
-	float init_a; /**< previous complete duplication time (to test if the individual cells doubling rate)*/
+	float init_a; /**< Previous complete duplication time (to test if the individual cells doubling rate)*/
+	float simAge; /**< Global execution time of a dead and alive cell. Used for MPI to make sure that the cells are simulated for the same amount of time*/ 
+	bool isSimAge; /**< Boolean controling if the simulation time of the cell has been reached*/
+	bool isCounted; /**< Boolean determining if the MPI node array has finished with all their cells*/
+
 	float Va; /**< Mass of the cell at time a*/
 	//float V0; /**< Initial mass of the cell at division -- unused*/
 	float Vi; /**< Mass at intiation. Also called initiation mass or critical mass*/
@@ -140,36 +136,13 @@ typedef struct CELL
 	bool isNewlyRep; /**< Boolean type flag that determines if the cell has recently replicated its chromosomes to avoid float replication*/
 	/** Check if the cell in question has initiated replication*/
 	bool isInitiated; /**< Boolean type parameter that flags if the cell has initiated its chromosomes in its lifetime. Note redundant?*/
-	bool isRep; /**< Boolean type parameter that flags if the cell is currently replicating itself. Note: redundant?*/
+	bool isRep; /**< Booleam type parameter that flags if the cell is currently replicating itself. Note: redundant?*/
 	float C; /**< Chromosme replicating time*/
 	float C_plasmid; /**< Plasmid replication time*/
 	float tau; /**< Cell exponential doubling rate*/
-	//float mu; /**< Cell exponential instantaneous growth rate. Note redundant?*/
 	bool isFrozen; /**< Boolean type parameter that flags if the cell is frozen due to reaching its maximal chromosome number. Note: Redundant?*/
 	// array of the return parameters of the model function
 	// TODO: do not hardcode the size of these
-	//#################### GSL ########################
-	
-	//double modelParams[NUM_MODELPARAMS+1]; /**< Array of parameters of the model*/ //TODO: have a check that the size of the model is correct
-	//double modelSpecies[NUM_MODELSPECIES+1]; /**< Model parameters*/ //TODO: this is a stupid way of implementing the storage of the model parameters, since the user must know the location of the paramters that represent the copy number of the gene in question. Better to have it as an object.
-	//int modelSumGenes[NUM_MODELGENES+1]; /**< Number of genes for the cell based on the cellPopulation modelGeneLocations*/
-	//int modelPrevSumGenes[NUM_MODELGENES+1]; /**< When calculating the copy number amount, there is a need to determine if the copy number has changed for the cell*/
-	//double modelParams[8]; /**< Array of parameters of the model*/ //TODO: have a check that the size of the model is correct
-	//double modelSpecies[15]; /**< Model parameters*/ //TODO: this is a stupid way of implementing the storage of the model parameters, since the user must know the location of the paramters that represent the copy number of the gene in question. Better to have it as an object.
-	//int modelSumGenes[3]; /**< Number of genes for the cell based on the cellPopulation modelGeneLocations*/
-	//int modelPrevSumGenes[3]; /**< When calculating the copy number amount, there is a need to determine if the copy number has changed for the cell*/
-
-	//gsl_odeiv2_system sys; /**< GSL system object*/
-	//gsl_odeiv2_driver * driver; /**< GSL driver object*/
-	
-	//################### libsbmlsim#######################
-	
-	myResult *rtn;
-	unsigned int err_num;
-	double ato;// = 0.0;
-	double rtol;// = 0.0;
-	double facmax;// = 0.0;
-	
 } Cell;
 
 int constructCell(Cell * cellArray, int index);
@@ -187,8 +160,6 @@ int initialiseCell(Cell * cellArray,
                     float ViNoise,
                     float Va,
                     float VaNoise,
-                    double * modelInitialSpecies,
-                    double * modelInitialParams,
                     float a);
 
 int growCell(Cell * cellArray,
@@ -217,9 +188,6 @@ int growCell(Cell * cellArray,
                 float D3,
                 float dt,
                 float volumeAdd,
-                int * modelGeneParamsLocations,
-                float * modelGeneLocations,
-                int * modelGeneLRPos,
                 bool isDrugTreat);
 
 #endif

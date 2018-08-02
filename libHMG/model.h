@@ -46,6 +46,7 @@ typedef struct MODEL
 	float dt; /**< Time step */
 	float t; /**< Current time of the simulation*/
 	int stop; /**< Boolean controlling if to terminate the simulation*/
+	int nodeSize; /**< MPI parameter determining the number of nodes that are initiated*/
 	CellPopulation * cellPopulation; /**< Struct of population*/
 } Model;
 

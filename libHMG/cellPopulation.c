@@ -69,21 +69,24 @@ int nestedFindBlockedRep(CellPopulation * cellPopulation, int i)
 * @param isDrugTreat Boolean type integer that determines if the model is growing under drug treatment conditions
 * @return Error handling integer
 */
-int growCells(CellPopulation * cellPopulation, float dt, float volumeAdd, bool isDrugTreat)
+int growCells(CellPopulation * cellPopulation, float dt, float volumeAdd, bool isDrugTreat, int noderank)
 {
         int stopFlag = 0;
-        int i, y;
         //Need to keep track of two different dynamically allocated arrays
         //for(i=0; i<cellPopulation->maxCells; i++)
 	//clock_t begin = clock();
-        for(i=0; i<cellPopulation->indexArray; i++)
+        //for(i=0; i<cellPopulation->indexArray; i++)
+	
+	for(int i=cellPopulation->nodeStartEnd[noderank-1][0]; i<cellPopulation->nodeStartEnd[noderank-1][1]; i++)
         {
-                if(cellPopulation->cellArray[i].isDead==false && cellPopulation->cellArray[i].isNewlyRep==false && cellPopulation->cellArray[i].isFrozen==false)
+                if(cellPopulation->cellArray[i].isDead==false && 
+			cellPopulation->cellArray[i].isNewlyRep==false && 
+			cellPopulation->cellArray[i].isFrozen==false &&
+			cellPopulation->cellArray[i].isSimAge==false)
                 {
 			//clock_t begin = clock();
                         stopFlag = growCell(cellPopulation->cellArray,
                                 i,
-                                cellPopulation->freeIndex,
                                 cellPopulation->tau,
                                 cellPopulation->cNoise,
                                 cellPopulation->dNoise,
@@ -107,9 +110,6 @@ int growCells(CellPopulation * cellPopulation, float dt, float volumeAdd, bool i
 				cellPopulation->D3,
                                 dt,
                                 volumeAdd,
-				cellPopulation->modelGeneParamsLocations,
-				cellPopulation->modelGeneLocations,
-				cellPopulation->modelGeneLRPos,
 				isDrugTreat);
 
 			//printf("\tgrowCell: %Lf\n", (long float)(clock()-begin));
@@ -129,7 +129,6 @@ int growCells(CellPopulation * cellPopulation, float dt, float volumeAdd, bool i
                                 constructCell(cellPopulation->cellArray, i);
 				cellPopulation->numCells--;
 				cellPopulation->numAnucleateCells += 1;
-				cellPopulation->freeIndex = i;
 				//return 1;
 			}
 			else if(stopFlag==3)
@@ -138,6 +137,13 @@ int growCells(CellPopulation * cellPopulation, float dt, float volumeAdd, bool i
 				cellPopulation->numAnucleateCells += 1;
 				//cellPopulation->numCells--;
 			}
+			else if(stopFlag==4)
+			{
+				printf("WARNING (growCells): Did not receive valid new cell location\n");
+				return 1;
+			}
+
+			/*
                         //find a new index space if the space has been taken by a newly divided cell
                         //avoids having to loop throught the whole array everytime you update a cell
                         if(cellPopulation->cellArray[cellPopulation->freeIndex].isDead==false)
@@ -156,17 +162,19 @@ int growCells(CellPopulation * cellPopulation, float dt, float volumeAdd, bool i
                                 cellPopulation->numCells += 1;
                                 cellPopulation->freeIndex = cellPopulation->indexArray;
                         }
+			*/
+			cellPopulation->cellArray[index].simAge += dt;
                 }
                 //if there is a cell that is detected to be dead (because it has been randonmly killed), then use that posisition for newly grown cells
                 else if(cellPopulation->cellArray[i].isDead==true)
                 {
-			if(cellPopulation->cellArray[cellPopulation->freeIndex].isDead==false)
+			if(cellPopulation->cellArray[cellPopulation->nodeFreeCell[noderank-1]].isDead==false)
 			{
-                        	cellPopulation->freeIndex = i;
+                        	cellPopulation->nodeFreeCell[noderank-1] = i;
 			}
-			else if(cellPopulation->freeIndex>i)
+			else if(cellPopulation->nodeFreeCell[noderank-1]>i)
 			{
-				cellPopulation->freeIndex = i;
+				cellPopulation->nodeFreeCell[noderank-1] = i;
 			}			
                 }
                 //this makes sure that if the cells has been newly replicated, it is not updated by growCell, this makes sure it is reset so the next time step it can be grown
@@ -174,13 +182,29 @@ int growCells(CellPopulation * cellPopulation, float dt, float volumeAdd, bool i
                 {
                         cellPopulation->cellArray[i].isNewlyRep = false;
                 }
-        }
+		else if(cellPopulation->cellArray[i].isSimAge==true && cellPopulation->cellArray[i].isCounted==false)
+		{
+			cellPopulation->nodeFinishedCells[noderank-1] += 1;
+			cellPopulation->cellArray[i].isCounted==true;	
+		}
+		//only for MPI
+		if(cellPopulation->cellArray[index].isSimAge==false && 
+			cellPopulation->cellArray[index].simAge>=cellPopulation->simAge)
+		{
+			cellPopulation->cellArray[index].isSimAge = true;
+		}
+	}
 
 	//DEBUG
 	/*
 	if((long float)(clock()-begin)/CLOCKS_PER_SEC>0.1)
 	{
-		cellDebug(cellPopulation->cellArray, i);		
+		cellDllArray[indes].simAge += dt;
+        if(cellArray[indes].simAge>=simAge)
+        {
+                cellArray[index].isSimAge = true;
+        }
+(cellPopulation->cellArray, i);		
 		printf("\tgrowCells: %Lf\n", (long float)(clock()-begin)/CLOCKS_PER_SEC);
 	}
 	*/
@@ -200,5 +224,3 @@ int growCells(CellPopulation * cellPopulation, float dt, float volumeAdd, bool i
 	}
         return 0;
 }
-
-//TODO: add a clean cells functions to make cleaning of the model easier

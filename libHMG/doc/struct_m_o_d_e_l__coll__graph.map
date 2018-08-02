@@ -1,6 +1,0 @@
-<map id="MODEL" name="MODEL">
-<area shape="rect" id="node2" href="$struct_c_e_l_l___p_o_p_u_l_a_t_i_o_n.html" title="Cell population object. " alt="" coords="28,184,176,211"/>
-<area shape="rect" id="node3" href="$struct_c_e_l_l.html" title="Structure of the cell. " alt="" coords="75,95,129,121"/>
-<area shape="rect" id="node4" href="$struct_p_l_a_s_m_i_d.html" title="Structure of the plasmid. " alt="" coords="5,5,87,32"/>
-<area shape="rect" id="node5" href="$struct_c_h_r_o_m.html" title="Structure of the chromosome. " alt="" coords="121,5,195,32"/>
-</map>
