@@ -36,9 +36,21 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <gsl/gsl_errno.h>
+#include <gsl/gsl_matrix.h>
+#include <gsl/gsl_odeiv2.h>
 
 #include "cell.h"
 #include "utility.h"
+#include "inputModel.h"
+
+//TODO: make all of these parameters in the dynamic by allocating the calloc and not setting this to be static like this
+//int MAX_CHROM = 32; //64;
+//int LOG2_MAX_REP_TIMERS = 6; //7; //where there can be 64*2 (128) max replication forks on a single chromosome (overkill?)
+//int MAX_PLASMID = 2000;
+int NUM_MODELPARAMS = 8;
+int NUM_MODELSPECIES = 15;
+int NUM_MODELGENES = 3;
 
 //################################ PRIVATE FUNCTIONS #############################
 /**
@@ -125,6 +137,41 @@ void cDebug(Cell * cellArray, int index)
 					cellArray[index].plasmidArray[i].replicationTimers[1]);
 			}
 		}
+		//MODEL
+		printf("cellArray[%d].modelPrevSumGenes -> [", index);
+		for(i=0; i<NUM_MODELGENES; i++)
+		{
+			printf("%d, ", cellArray[index].modelPrevSumGenes[i]);
+		}
+		printf("]\n");
+
+		printf("cellArray[%d].modelSumGenes -> [", index);
+		for(i=0; i<NUM_MODELGENES; i++)
+		{
+			printf("%d, ", cellArray[index].modelSumGenes[i]);
+		}
+		printf("]\n");
+
+		printf("cellArray[%d].modelParams -> [", index);
+		for(i=0; i<NUM_MODELPARAMS; i++)
+		{
+			printf("%f, ", cellArray[index].modelParams[i]);
+		}
+		printf("]\n");
+
+		printf("cellArray[%d].modelSpecies -> [", index);
+		for(i=0; i<NUM_MODELSPECIES; i++)
+		{
+			printf("%f, ", cellArray[index].modelSpecies[i]);
+		}
+		printf("]\n");
+
+                //printf("\tAddress-> [");
+                //for(i=0; i<cellArray[index].numChrom; i++)
+                //{
+                //      printf("%p,", cellArray[index].chromArray[i].replicationTimers);
+                //}
+                //printf("]\n");
         }
         else
         {
@@ -313,6 +360,39 @@ int constructCell(Cell * cellArray, int index)
 	cellArray[index].segregationTimer = 0.0;
 	cellArray[index].segregationTimer2 = 0.0;
 	//cellArray[index].divVol = 0.0;
+	//############## Model parameters ###########
+	for(i=0; i<NUM_MODELSPECIES; i++)
+	{
+		cellArray[index].modelSpecies[i] = 0.0;
+	}
+	for(i=0; i<NUM_MODELPARAMS; i++)
+	{
+		cellArray[index].modelParams[i] = 0.0;
+	}
+	for(i=0; i<NUM_MODELGENES; i++)
+	{
+		cellArray[index].modelSumGenes[i] = 0;
+	}
+	for(i=0; i<NUM_MODELGENES; i++)
+	{
+		cellArray[index].modelPrevSumGenes[i] = 0;
+	}
+
+	
+	/*
+	cellArray[index].sys.function = model_bennett_repressilator; //TODO: pass this from model.c
+	cellArray[index].sys.jacobian = NULL;
+	if(NUM_MODELSPECIES==0)
+	{
+		cellArray[index].sys.dimension = 1;
+	}
+	else
+	{
+		cellArray[index].sys.dimension = NUM_MODELSPECIES;
+	}
+	cellArray[index].sys.params = &cellArray[index].modelParams;
+	cellArray[index].driver = gsl_odeiv2_driver_alloc_y_new(&cellArray[index].sys, gsl_odeiv2_step_rkf45, 1e-6, 1e-6, 0.0); //TODO: make the last three inputs part of the model
+	*/
 
 	return 0;
 }
@@ -353,6 +433,8 @@ int initialiseCell(Cell * cellArray,
 		    float ViNoise,
 		    float Va,
 		    float VaNoise,
+		    double * modelInitialSpecies,
+		    double * modelInitialParams,
 		    float a)
 {
 	cellArray[index].tau = normalDistRandn(tau, (tau*VaNoise/100.0));
@@ -394,6 +476,25 @@ int initialiseCell(Cell * cellArray,
 	cellArray[index].plasmidArray[0].oriC = 1;
 
 	cellArray[index].isFrozen = false;
+	//copy the initial parameters to cell
+	memcpy(cellArray[index].modelSpecies, modelInitialSpecies, sizeof(double)*NUM_MODELSPECIES);
+	memcpy(cellArray[index].modelParams, modelInitialParams, sizeof(double)*NUM_MODELPARAMS);
+	//memcpy(cellArray[index].modelSpecies, modelInitialSpecies, sizeof(double)*(NUM_MODELSPECIES+1));
+	//memcpy(cellArray[index].modelParams, modelInitialParams, sizeof(double)*(NUM_MODELPARAMS+1));
+	//set the gene copy numbers from the model to 1.0
+	for(int i=0; i<NUM_MODELGENES; i++)
+	{
+		cellArray[index].modelSumGenes[i] = 1.0;
+		cellArray[index].modelPrevSumGenes[i] = 1.0;
+	}
+
+	// set the gsl ODE solver 
+	cellArray[index].sys.function = model_bennett_repressilator; //TODO: pass this from model.c
+	cellArray[index].sys.jacobian = NULL;
+	cellArray[index].sys.dimension = NUM_MODELSPECIES;
+	cellArray[index].sys.params = &cellArray[index].modelParams;
+	
+        cellArray[index].driver = gsl_odeiv2_driver_alloc_y_new(&cellArray[index].sys, gsl_odeiv2_step_rkf45, 1e-6, 1e-6, 0.0); //TODO: make the last three inputs part of the model
 
 	return 0;
 }
@@ -408,6 +509,7 @@ int initialiseCell(Cell * cellArray,
 *
 * @param cellArray Array containg all the cells
 * @param index Position of the cell of interest in the cellArray
+* @param newIndex Empty position in the cellArray for daughter cell
 * @param tau Exponential doubling rate
 * @param C Replication time
 * @param cNoise Replication Gaussian standard deviation
@@ -419,11 +521,15 @@ int initialiseCell(Cell * cellArray,
 * @param divNoise Division standard deviation volume ration distribution between mother and daughter cell 
 * @param partRatio Chromosome partition mean ration between mother and daughter cell (default=0.5)
 * @param partNoise Chromosome partition standard deviation between mother and daughter cell
+* @param modelGeneParamsLocations Location of the parameters in the GSL parameter array that determines the gene number
+* @param modelGeneLocations Location of the genes on the chromsome
+* @param modelGeneLRPos Determine if the gene is on the left or right hand side of the oriC
 * @param dt Time step
 * @return Error handling integer
 */
 int divideCell(Cell * cellArray,
 		int index,
+		int newIndex,
 		float tau,
 		float C,
 		float C_plasmid,
@@ -438,6 +544,9 @@ int divideCell(Cell * cellArray,
 		float divNoise,
 		float partRatio,
 		float partNoise,
+		int * modelGeneParamsLocations,
+		float * modelGeneLocations,
+		int * modelGeneLRPos,
 		float dt)
 {
 	//printf("################## Dividing Cell %d -> %d ##########################", index, newIndex);
@@ -451,26 +560,60 @@ int divideCell(Cell * cellArray,
 	float newVolume = cellArray[index].Va*normalDistRandn(divRatio,((divNoise*divRatio)/100.0));
 	int motherTotalOriC = cellArray[index].totalPotentialOriC;
 	int daughterTotalOriC = 0;
+
+	//DAUGHTER CELL	-- initialise
+	//Use the function instead of defining these manually. The initial parameters for the model in this case need to be overwritten with half of mother cell
+	//create 2 tmp species arrays where the mother and dauther concentrations are halfed --> then delete them from the heap to avoid memory leackage
+	double tmpMotherSpecies[15] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}; //FILL THIS with 0.0 when the size is determined
+	double tmpDaughterSpecies[15] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 	
+	//the amount of each species concentration that is trasnferred to the daughter cell is determined by the volume transfer (i.e. newVolume)
+	//float percVolTrans = newVolume*100.0/cellArray[index].Va;
+	/*
+	if(index==0)
+	{
+		printf("################## DIVIDING ####################\n");
+		printf("cellArray[0].modelSpecies: [");
+		for(i=0; i<NUM_MODELSPECIES; i++)
+		{
+			printf("%f,", cellArray[index].modelSpecies[i]);
+		}
+		printf("]\n");
+
+		for(i=0; i<NUM_MODELSPECIES; i++)
+		{
+			printf("%f*(%f*100.0/%f)/100.0\n", cellArray[index].modelSpecies[i], newVolume, cellArray[index].Va);
+		}
+	}
+	*/
+	for(i=0; i<NUM_MODELSPECIES; i++)
+	{
+		tmpDaughterSpecies[i] = cellArray[index].modelSpecies[i]*(newVolume*100.0/cellArray[index].Va)/100.0;
+		tmpMotherSpecies[i] = cellArray[index].modelSpecies[i]-tmpDaughterSpecies[i];
+	}
+	/*
+	if(index==0)
+	{
+		printf("tmpDaughterSpecies: [");
+		for(i=0; i<NUM_MODELSPECIES; i++)
+		{
+			printf("%f,", tmpDaughterSpecies[i]);
+		}
+		printf("]\n");
+	}	
+	*/
+
+	//RESET THEM TO 0
+	for(i=0; i<NUM_MODELGENES; i++)
+	{
+		cellArray[newIndex].modelSumGenes[i] = 0;
+		cellArray[newIndex].modelPrevSumGenes[i] = 0;
+	}
 	//STUPID maybe pass the pointer then
 	//float passVol = cellArray[index].Va-newVolume;
 	//double * passModelParams = cellArray[index].modelParams;
 	//float zero = 0.0;
-	
-	//quesry the master node to return the position of the new index
-	int newIndex = 0;
-	MPI_Send(&newIndex, 1, MPI_INT, 0, tag, MPI_COMM_WORLD);
-	MPI_Recv(&newIndex, 1, MPI_INT, 0, tag, MPI_COMM_WORLD, &Stat);
-
-	if(newIndex==-1)
-	{
-		return 1;
-	}
-
 	initialiseCell(cellArray, newIndex, tau, C, C_plasmid, cNoise, D, dNoise, Vi, Vi_plasmid, ViNoise, cellArray[index].Va-newVolume, VaNoise, tmpDaughterSpecies, cellArray[index].modelParams, 0.0); 
-
-
-
 	//parameters to overwrite from cell initialisation
         cellArray[newIndex].Ga = 0.0;
         cellArray[newIndex].Pa = 0.0;
@@ -552,6 +695,23 @@ int divideCell(Cell * cellArray,
 						//tmpGa += (float)(cellArray[index].chromArray[i].replicationTimers[i][y][1]/100.0)/2.0;
 						tmpGa += (float)(cellArray[index].chromArray[rnd].replicationTimers[i][y][1]/100.0)/2.0;
                                         }
+					//################# Recalculate the different modelSumGenes  #################
+					for(int gN=0; gN<NUM_MODELGENES; gN++)
+					{
+						if(modelGeneLRPos[gN]==0 &&
+							cellArray[index].chromArray[rnd].replicationTimers[i][y][0]>modelGeneLocations[gN])
+						{
+							cellArray[newIndex].modelSumGenes[gN] += 1;
+							cellArray[newIndex].modelPrevSumGenes[gN] += 1;
+						}
+						if(modelGeneLRPos[gN]==1 &&
+							cellArray[index].chromArray[rnd].replicationTimers[i][y][1]>modelGeneLocations[gN])
+						{
+							cellArray[newIndex].modelSumGenes[gN] += 1;
+							cellArray[newIndex].modelPrevSumGenes[gN] += 1;
+						}
+						//###################################################
+					}
 				}
 			}
 
@@ -593,12 +753,9 @@ int divideCell(Cell * cellArray,
 				tmpPa += (float)(cellArray[index].plasmidArray[rnd].replicationTimers[1]/100.0)/2.0;
 			}
 			
-			cellArray[newIndex].plasmidArray[cellArray[newIndex].numPlasmid].replicationTimers[0] = 
-				cellArray[index].plasmidArray[rnd].replicationTimers[0];
-			cellArray[newIndex].plasmidArray[cellArray[newIndex].numPlasmid].replicationTimers[1] = 
-				cellArray[index].plasmidArray[rnd].replicationTimers[1];
-			cellArray[newIndex].plasmidArray[cellArray[newIndex].numPlasmid].oriC = 
-				cellArray[index].plasmidArray[rnd].oriC;	
+			cellArray[newIndex].plasmidArray[cellArray[newIndex].numPlasmid].replicationTimers[0] = cellArray[index].plasmidArray[rnd].replicationTimers[0];
+			cellArray[newIndex].plasmidArray[cellArray[newIndex].numPlasmid].replicationTimers[1] = cellArray[index].plasmidArray[rnd].replicationTimers[1];
+			cellArray[newIndex].plasmidArray[cellArray[newIndex].numPlasmid].oriC = cellArray[index].plasmidArray[rnd].oriC;	
 
 			cellArray[newIndex].numPlasmid += 1;
 			cellArray[index].numPlasmid -= 1;
@@ -622,6 +779,17 @@ int divideCell(Cell * cellArray,
 
 	cellArray[newIndex].Ga = cellArray[newIndex].numChrom+tmpGa;
 	cellArray[newIndex].Pa = cellArray[newIndex].numPlasmid+tmpPa;
+	//TODO: check the accuracy of this stupid thing
+	for(int gN=0; gN<NUM_MODELGENES; gN++)
+	{
+		//cellArray[newIndex].modelSumGenes[gN] += cellArray[newIndex].numChrom;
+		//cellArray[newIndex].modelPrevSumGenes[gN] += cellArray[newIndex].numChrom;
+		cellArray[index].modelPrevSumGenes[gN] = cellArray[index].modelSumGenes[gN]-cellArray[newIndex].modelSumGenes[gN];
+		cellArray[index].modelSumGenes[gN] = cellArray[index].modelSumGenes[gN]-cellArray[newIndex].modelSumGenes[gN];
+		//update the sumGenes to the modelParam
+		//cellArray[newIndex].modelParams[modelGeneParamsLocations[gN]] = cellArray[newIndex].modelSumGenes[gN];
+		//cellArray[index].modelParams[modelGeneParamsLocations[gN]] = cellArray[index].modelSumGenes[gN];
+	}
 
 	cellArray[newIndex].segregationTimer = cellArray[index].segregationTimer2;
 	cellArray[newIndex].segregationTimer2 = 0.0; 
@@ -643,6 +811,8 @@ int divideCell(Cell * cellArray,
 	cellArray[index].Vi_plasmid = normalDistRandn(Vi_plasmid, (Vi_plasmid*ViNoise/100.0));
 	cellArray[index].tau = normalDistRandn(tau, (tau*VaNoise/100.0));
         cellArray[index].injectionDeviation = normalDistRandn(1.0, (VaNoise/100.0));
+	memcpy(cellArray[index].modelSpecies, tmpMotherSpecies, sizeof(double)*NUM_MODELSPECIES);
+	//memcpy(cellArray[index].modelSpecies, tmpMotherSpecies, sizeof(double)*(NUM_MODELSPECIES+1));
         cellArray[index].prev_newbornVol = newVolume;
 
 	//reorganise the parent cell chromosome 
@@ -656,7 +826,37 @@ int divideCell(Cell * cellArray,
 
 	//when we divide we do not want the potential oriC to be still there
 	cellArray[index].totalPotentialOriC = motherTotalOriC;	
+	/*
+	printf("##############################################################\n");
+	cDebug(cellArray, index);
+	cDebug(cellArray, newIndex);
+	printf("##############################################################\n");
+	int a;
+        scanf("%d", &a);
+	*/
+	/*
+	if(index==0)
+	{
+		printf("cellArray[0].modelSpecies: [");
+		for(i=0; i<NUM_MODELSPECIES; i++)
+		{
+			printf("%f,", cellArray[index].modelSpecies[i]);
+		}
+		printf("]\n");
+	}	
+	*/
 
+	//cDebug(cellArray, index);
+	//cDebug(cellArray, newIndex);
+	
+        //int a;
+        //scanf("%d", &a);	
+
+	//printf("################## Mother Cell ##########################");
+	//cDebug(cellArray, index);
+	//#####################################################
+	//printf("################## Daughter Cell ##########################");
+	//cDebug(cellArray, newIndex);
 	return 0;
 }
 
@@ -691,15 +891,33 @@ int growChromosomes(Cell * cellArray,
 			bool isDrugTreat, 
 			float chromDeg, 
 			float repForkDeg, 
+			float * modelGeneLocations, 
+			int * modelGeneLRPos,
 			int numCells)
 {
 	bool isSegTimer = false;
 	bool isSegTimer2 = false;
 
+	/*
+	//What does tis do?????
+	if(cellArray[index].numChrom>=2)
+	{	
+		cellArray[index].init_a = cellArray[index].a;
+		//cellArray[index].segregationTimer += dt;
+		isSegTimer = true;
+	}
+	*/
+
 	//ONLY ONE check
 	int i, y, z;
 	float tmpGa = 0.0;
 	//TODO: find a way where they get triggered without resetting everything to 0
+	//set the copy number of the gene to be the same as the copy number of the chromosom, since each copycontains one copy number of the gene
+	//here we remove the copy number of the gene of interest since each non replicating chromosome contains
+	for(i=0; i<NUM_MODELGENES; i++)
+	{
+		cellArray[index].modelSumGenes[i] = cellArray[index].numChrom;
+	}
 	int sumOriC = 0;
 	int sumPotentialOriC = 0;	
 
@@ -738,9 +956,27 @@ int growChromosomes(Cell * cellArray,
 					prevOriC = (int)(log2(findPowerFloor(cellArray[index].chromArray[i].potentialOriC-0.5)));
 					prevOriC_two = (int)(log2(findPowerFloor(prevOriC)));
 				}
+				/* debug for first cell
+				if(index==0)
+				{
+					printf("EclipsePerc: %f\n", (float)((dt*100.0/((float)cellArray[index].C*0.6))*100.0));
+					printf("potentialOriC: %d\n", cellArray[index].chromArray[i].potentialOriC);
+					//printf("prev: %d\n", prev);
+					printf("prevOriC: %d\n", prevOriC);
+					printf("prevOriC_two: %d\n", prevOriC_two);
+				}
+				*/
 				int z_p;
+				//prevOriC = prev;
 				for(z_p=0; z_p<prevOriC; z_p++)
 				{
+					/*
+					if(index==0)
+					{
+						printf("[%d][%d][0] -> %f\n", prevOriC_two, z_p, cellArray[index].chromArray[i].replicationTimers[prevOriC_two][z_p][0]);
+						printf("[%d][%d][1] -> %f\n", prevOriC_two, z_p, cellArray[index].chromArray[i].replicationTimers[prevOriC_two][z_p][1]);
+					}
+					*/
 					if(cellArray[index].chromArray[i].replicationTimers[prevOriC_two][z_p][0]<eclipsePerc &&
 						cellArray[index].chromArray[i].replicationTimers[prevOriC_two][z_p][1]<eclipsePerc)
 					{
@@ -748,7 +984,12 @@ int growChromosomes(Cell * cellArray,
 					}
 				}
 			}
-
+			/*
+			if(index==0)
+			{
+				printf("isPastEclipse: %d\n", isPastEclipse);
+			}
+			*/
 			//############# DEGRADE CHROMOSOME ##################
 			//case that the whole chromosome degrades 					
 			if(normalDistRandn(0.0,1.0)>chromDeg &&
@@ -795,6 +1036,26 @@ int growChromosomes(Cell * cellArray,
 				cellArray[index].chromArray[i].replicationTimers[0][0][0] = 0.0;
 				cellArray[index].chromArray[i].replicationTimers[0][0][1] = 0.0;	
 
+				/*
+				//TODO: include this in another loop of all chromosomes and set it by number
+				// NOTE: with chromosome degradation that wouldnt work anymore
+				int emptyChromPos = -1;
+				//find the position of the next empty chromosome
+				for(y=0; y<MAX_CHROM; y++)
+				{
+					if(cellArray[index].chromArray[y].oriC==0 && emptyChromPos==-1)
+					{
+						emptyChromPos = y;
+						break;
+					}
+				}
+				if(emptyChromPos==-1)
+				{
+					//printf("WARNING (ReplicateChromosome): Trying to replicate the chromosome when MAX_CHROM (%d) is reached (%d)\n", 
+					//	MAX_CHROM, cellArray[index].numChrom);
+					return 1;
+				}
+				*/
 				int emptyChromPos = cellArray[index].numChrom; // <-- this is to replace what is above for faster execution
 				//make check
 				if(cellArray[index].chromArray[emptyChromPos].oriC!=0)
@@ -986,8 +1247,30 @@ int growChromosomes(Cell * cellArray,
 							isPastEclipse==true &&
 							isDrugTreat==false)
 						{
+							/*
+							int selected_y = -1;
+							int selected_z = -1;
+							if(emptyLoc[0]==-1 && emptyLoc[1]==-1)
+							{
+								emptyLoc[0] = y;
+								emptyLoc[1] = z;
+								selected_y = y;
+								selected_z = z;
+							}
+							else
+							{
+								selected_y = emptyLoc[0];
+								selected_z = emptyLoc[1];	
+							}
+							*/
 							if(normalDistRandn(0.0,1.0)>chanceInit)
 							{
+								/*
+								cellArray[index].chromArray[i].replicationTimers[selected_y][selected_z][0] += 
+									(float)(dt*100.0/(float)cellArray[index].C);
+								cellArray[index].chromArray[i].replicationTimers[selected_y][selected_z][1] += 
+									(float)(dt*100.0/(float)cellArray[index].C);
+								*/
 		
 								cellArray[index].chromArray[i].replicationTimers[y][z][0] += 
 									(float)(dt*100.0/(float)cellArray[index].C);
@@ -997,6 +1280,10 @@ int growChromosomes(Cell * cellArray,
 								//this is only valid if it is asynchronous
 								cellArray[index].chromArray[i].repForks += 2;
 								cellArray[index].totalRepForks += 2;
+								//we do not no this here because the creation of the pair of replication forks could be asynchronous 
+								//cellArray[index].chromArray[i].oriC += 1;
+								//emptyLoc[0] = -1;
+								//emptyLoc[1] = -1;
 							}	
 						}
 
@@ -1009,6 +1296,21 @@ int growChromosomes(Cell * cellArray,
 						{
 							tmpGa += (float)(cellArray[index].chromArray[i].replicationTimers[y][z][1]/100.0)/2.0;
 						}
+						//DETERMINE THE COPY NUMBER AS DETERMINED BY modelGeneLocations where their locations are modelGeneParamsLocations in modelParams
+						//because the timers only represent the replicating strands, all chromosomes contain at least one copy of the gene (==numChrom)
+						//and if the repilication timer is greater than the relative position of the gene then we add a copy number
+						for(int gN=0; gN<NUM_MODELGENES; gN++)
+						{
+							if(modelGeneLRPos[gN]==0 && cellArray[index].chromArray[i].replicationTimers[y][z][0]>modelGeneLocations[gN])
+							{
+								cellArray[index].modelSumGenes[gN] += 1;
+							}
+							if(modelGeneLRPos[gN]==1 && cellArray[index].chromArray[i].replicationTimers[y][z][1]>modelGeneLocations[gN])
+							{
+								cellArray[index].modelSumGenes[gN] += 1;
+							}
+						}
+						//Note: as stated above, this is here only if replication forks initiation is asynchronous. Not the case here.
 						if(cellArray[index].chromArray[i].replicationTimers[y][z][0]>0.0 && 
 							cellArray[index].chromArray[i].replicationTimers[y][z][1]>0.0)
 						{
@@ -1045,6 +1347,17 @@ int growChromosomes(Cell * cellArray,
 	{
 		cellArray[index].segregationTimer2 += dt;
 	}
+	// in Keasling paper states forks>=chrom. We can interpret this as either the pair of forks or the individual replication forks
+	// --> warning may cause the cells to initiate segregation timer right after division.... unsure if this actually happens
+	//TODO: Test this with mass distribution
+	/*
+	if((int)(cellArray[index].totalRepForks/2.0)>=cellArray[index].numChrom &&
+		cellArray[index].numChrom>=2 && 
+		cellArray[index].segregationTimer==0.0)
+	{
+		cellArray[index].segregationTimer += dt;
+	}
+	*/
 	return 0;
 }
 
@@ -1187,6 +1500,9 @@ int growPlasmids(Cell * cellArray, int index, float dt)
 * @param D3 One-phase exponential function segregation time third term
 * @param dt Time step
 * @param volumeAdd If injection growth populaion mean volumetric growth
+* @param modelGeneParamsLocations Location of the parameters in the GSL parameter array that determines the gene number
+* @param modelGeneLocations Location of the genes on the chromsome
+* @param modelGeneLRPos Determine if the gene is on the left or right hand side of the oriC
 * @param isDrugTreat Boolean type parameter that determines if the cell is experiencing drug treatment. If true then stop the initiation of new replication forks, but complete the ones that are currently open.
 *
 * @return Error handling integer
@@ -1195,6 +1511,7 @@ int growPlasmids(Cell * cellArray, int index, float dt)
 //float trad_D = (18.5+4.5)*(1.0+(exp(-4.5/db_h)));
 int growCell(Cell * cellArray,
 		int index,
+		int newIndex,
 		float tau,
 		float cNoise,
 		float dNoise,
@@ -1218,6 +1535,9 @@ int growCell(Cell * cellArray,
 		float D3,
 		float dt,
 		float volumeAdd,
+		int * modelGeneParamsLocations,
+		float * modelGeneLocations,
+		int * modelGeneLRPos,
 		bool isDrugTreat)
 {
 	int stopFlag = 0;
@@ -1259,6 +1579,30 @@ int growCell(Cell * cellArray,
 	int i, y, z;
 	cellArray[index].a += dt;
 
+	//############################## MODEL TIME STEP ####################
+	//TODO: seems like we need to add cellArray[index].a to the gsl driver and they append the time step
+	//Update the copy number of the genes
+	//TODO: change modelGeneParamsLocations to modelGeneLocations 
+	for(i=0; i<NUM_MODELGENES; i++)
+	{
+		//This is the original one where each promoter is 10.0
+		cellArray[index].modelSpecies[modelGeneParamsLocations[i]] += (cellArray[index].modelSumGenes[i]-cellArray[index].modelPrevSumGenes[i])*10.0; //WARNING: *10.0 is only because of bennett et al. sum of one 
+		cellArray[index].modelPrevSumGenes[i] = cellArray[index].modelSumGenes[i]; 
+	}	
+
+	if(NUM_MODELGENES!=0)
+	{
+		double d_a = (double)cellArray[index].a;
+		double d_a_dt = (double)cellArray[index].a+(double)dt;
+		int status = gsl_odeiv2_driver_apply(cellArray[index].driver, &d_a, d_a_dt, cellArray[index].modelSpecies);
+		if(status!=GSL_SUCCESS)
+		{
+			printf("ERROR (growCell): GSL error, return value=%d\n", status);
+			//cDebug(cellArray, index);
+			return 2;
+		}
+	}
+
 	if(volumeAdd==-1.0)
 	{
 		cellArray[index].Va = cellArray[index].Va*(1.0+mu*dt);
@@ -1269,7 +1613,6 @@ int growCell(Cell * cellArray,
 		//cellArray[index].Va = cellArray[index].Va+volumeAdd;
 	}
 
-	//critical Mass
 	if(cellArray[index].Va>=(cellArray[index].Vi*cellArray[index].totalPotentialOriC))
 	{
                 for(i=0; i<cellArray[index].numChrom; i++)
@@ -1284,10 +1627,8 @@ int growCell(Cell * cellArray,
                 cellArray[index].isRep = true;
 	}
 
-	//#### PLASMID ####
 	//at this point in time we will not implement overalapping rounds of replication for plasmids for two resaons. The first, since different plasmids have a replication time that is so fast, applying this would be practivally useless
 	//if(cellArray[index].Va>=cellArray[index].Vi_plasmid*cellArray[index].numPlasmid)
-	/*
 	if(cellArray[index].Va>=cellArray[index].Vi_plasmid*cellArray[index].totalPotentialOriC_plasmid)
 	{
 		//terrible implementation but it works. TODO: make random
@@ -1301,22 +1642,22 @@ int growCell(Cell * cellArray,
 			}
 		}
 	}
-	*/
 
+	//printf("\tDEBUG (growCell): Opening new potentialOriC\n");
+	
+	//clock_t begin = clock();
+
+	//printf("\tDEBUG (growCell): Growing chromosomes\n");
 	stopFlag = growChromosomes(cellArray, index, dt, chanceInit, C, cNoise, isDrugTreat, chromDeg, repForkDeg, modelGeneLocations, modelGeneLRPos, numCells);
 	if(stopFlag!=0)
 	{
 		return stopFlag;
 	}
-	
-	/*
-	//##### PLASMID ####
 	stopFlag = growPlasmids(cellArray, index, dt);
 	if(stopFlag!=0)
 	{
 		return stopFlag;
 	}
-	*/
 
 	//########################## cell division ############################
 	//second condition for the drug treatment	
@@ -1340,7 +1681,32 @@ int growCell(Cell * cellArray,
 	//############################################# CLASSIC ############################################
 	//printf("\tDEBUG (growCell): Dividing cell\n");
 	if(cellArray[index].segregationTimer>=cellArray[index].D && cellArray[index].D>0.0)
+	//if(cellArray[index].Va>=cellArray[index].divVol && cellArray[index].numChrom>=2)
+	//if(cellArray[index].Va>=cellArray[index].divVol)
 	{
+		/*
+		if(cellArray[index].numChrom==1)
+		{
+			printf("WARNING: Dividing cell only contains a single chromosome\n");
+			float newVolume = cellArray[index].Va*normalDistRandn(divRatio,((divNoise*divRatio)/100.0));
+			cellArray[index].isDead = false;
+			cellArray[index].isInitiated = false;
+			cellArray[index].isRep = false;
+			cellArray[index].Va = newVolume;
+			cellArray[index].a = 0.0;
+			cellArray[index].C = normalDistRandn(C, (C*cNoise/100.0));
+			cellArray[index].C_plasmid = normalDistRandn(C_plasmid, (C_plasmid*cNoise/100.0));
+			cellArray[index].D = normalDistRandn(D, (D*dNoise/100.0));
+			cellArray[index].Vi = normalDistRandn(Vi, (Vi*ViNoise/100.0));
+			cellArray[index].Vi_plasmid = normalDistRandn(Vi_plasmid, (Vi_plasmid*ViNoise/100.0));
+			cellArray[index].tau = tau;
+			cellArray[index].segregationTimer = 0.0;
+			cellArray[index].segregationTimer2 = 0.0;
+			//cellArray[index].divVol = adderDivVol(tau);
+			return 3;
+		}
+		*/
+		//else if(cellArray[index].numChrom==0)
 		if(cellArray[index].numChrom==0)
 		{
 			printf("WARNING: Dividing cell contains no chromosomes\n");
@@ -1348,10 +1714,9 @@ int growCell(Cell * cellArray,
 		}
 		else if(cellArray[index].numChrom>=2)
 		{
-			stopFlag = divideCell(cellArray, index, tau, C, C_plasmid, cNoise, D, dNoise, Vi, Vi_plasmid, ViNoise, VaNoise, divRatio, divNoise, partRatio, partNoise, dt);
+			stopFlag = divideCell(cellArray, index, newIndex, tau, C, C_plasmid, cNoise, D, dNoise, Vi, Vi_plasmid, ViNoise, VaNoise, divRatio, divNoise, partRatio, partNoise, modelGeneParamsLocations, modelGeneLocations, modelGeneLRPos, dt);
 		}
-	}	
-
+	}
 	//printf("\tDEBUG (growCell): Done dividing cell\n");
 	if(stopFlag==3)
 	{
@@ -1360,10 +1725,6 @@ int growCell(Cell * cellArray,
 	else if(stopFlag==2)
 	{
 		return 2;
-	}
-	if(stopFlag==4)
-	{
-		return 4;
 	}
 
 	//################# DEBUG: print the cell 0 #############################	
