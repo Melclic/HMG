@@ -33,6 +33,7 @@
 #include "cell.h"
 #include "utility.h"
 #include "inputModel.h"
+#include "libsbmlsim/libsbmlsim/libsbmlsim.h"
 
 /**
  * @brief Cell population object
@@ -74,7 +75,9 @@ typedef struct CELL_POPULATION
 	float D3; /**< functional form of the segregation rate (D)*/
         float * totalVolumes; /**< Total population volume changes time series (based on dt)*/
         int lenTotalV; /**< Length of the totalVolumes array*/
-	//ODE model stuff
+
+	//######################## GSL ODE model stuff ################
+	
 	//double modelInitialParams[8]; /**< Initial params of the model*/
 	//double modelInitialSpecies[15]; /**< Initial species of the model*/
 	//float modelGeneLocations[3]; /**< Location on the chromosome (between 0.0 and 100.0, expressed in %) of the gene in the model*/
@@ -90,6 +93,13 @@ typedef struct CELL_POPULATION
 	//float modelGeneLocations[NUM_MODELGENES]; /**< Location on the chromosome (between 0.0 and 100.0, expressed in %) of the gene in the model*/
 	//int modelGeneLRPos[NUM_MODELGENES]; /**< Position of the gene on either the left or right hand side of the chromosome; where 0 -> right, 1 -> left*/
 	//int modelGeneParamsLocations[NUM_MODELGENES]; /**< Location of the parameteris in the model (note not species) that describes the copy number of a gene in particular */
+	
+	//####################### libsbmlsim ##############
+	SBMLDocument_t* d;
+        Model_t* m;
+        int method;
+        boolean use_lazy_method;
+	
 } CellPopulation;
 
 int growCells(CellPopulation * cellPopulation,

@@ -200,3 +200,5 @@ int growCells(CellPopulation * cellPopulation, float dt, float volumeAdd, bool i
 	}
         return 0;
 }
+
+//TODO: add a clean cells functions to make cleaning of the model easier

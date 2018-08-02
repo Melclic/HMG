@@ -245,6 +245,53 @@ int setModel(Model * model,
 	memcpy(model->cellPopulation->modelGeneParamsLocations, modelGeneParamsLocations, sizeof(int)*(NUM_MODELGENES+1));
 	memcpy(model->cellPopulation->modelGeneLRPos, modelGeneLRPos, sizeof(int)*(NUM_MODELGENES+1));
 	*/
+
+	//############################ libsbmlsim ##################
+	
+	  if (cellArray[index].d == NULL)
+	{
+            //return create_myResult_with_errorCode(Unknown);
+            return 1;
+	}
+          err_num = SBMLDocument_getNumErrors(cellArray[index].d);
+          if (err_num > 0)
+	  {
+		  const XMLError_t *err = (const XMLError_t *)SBMLDocument_getError(cellArray[index].d, 0);
+           if (XMLError_isError(err) || XMLError_isFatal(err))
+	   {
+              XMLErrorCode_t errcode = XMLError_getErrorId(err);
+              switch (errcode) 
+	      {
+                case XMLFileUnreadable:
+                  cellArray[index].rtn = create_myResult_with_errorCode(FileNotFound);
+                  break;
+                case XMLFileUnwritable:
+                case XMLFileOperationError:
+                case XMLNetworkAccessError:
+                  cellArray[index].rtn = create_myResult_with_errorCode(SBMLOperationFailed);
+                  break;
+                case InternalXMLParserError:
+                case UnrecognizedXMLParserCode:
+                case XMLTranscoderError:
+                  cellArray[index].rtn = create_myResult_with_errorCode(InternalParserError);
+                  break;
+                case XMLOutOfMemory:
+                  cellArray[index].rtn = create_myResult_with_errorCode(OutOfMemory);
+                  break;
+                case XMLUnknownError:
+                  cellArray[index].rtn = create_myResult_with_errorCode(Unknown);
+                  break;
+                default:
+                  cellArray[index].rtn = create_myResult_with_errorCode(InvalidSBML);
+                  break;
+              }
+              SBMLDocument_free(model->cellPopulation->d);
+              cellArray[index].rtn;
+              return 1;
+            }
+          }
+          model->cellPopulation->m = SBMLDocument_getModel(d);
+
 	return 0;
 }
 

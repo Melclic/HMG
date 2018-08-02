@@ -36,13 +36,16 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdbool.h>
+/*
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_odeiv2.h>
+*/
 
 #include "cell.h"
 #include "utility.h"
 #include "inputModel.h"
+#include "libsbmlsim/libsbmlsim/libsbmlsim.h"
 
 //TODO: make all of these parameters in the dynamic by allocating the calloc and not setting this to be static like this
 //int MAX_CHROM = 32; //64;
@@ -379,20 +382,6 @@ int constructCell(Cell * cellArray, int index)
 	}
 
 	
-	/*
-	cellArray[index].sys.function = model_bennett_repressilator; //TODO: pass this from model.c
-	cellArray[index].sys.jacobian = NULL;
-	if(NUM_MODELSPECIES==0)
-	{
-		cellArray[index].sys.dimension = 1;
-	}
-	else
-	{
-		cellArray[index].sys.dimension = NUM_MODELSPECIES;
-	}
-	cellArray[index].sys.params = &cellArray[index].modelParams;
-	cellArray[index].driver = gsl_odeiv2_driver_alloc_y_new(&cellArray[index].sys, gsl_odeiv2_step_rkf45, 1e-6, 1e-6, 0.0); //TODO: make the last three inputs part of the model
-	*/
 
 	return 0;
 }
@@ -466,6 +455,7 @@ int initialiseCell(Cell * cellArray,
 	cellArray[index].totalRepForks = 0;
 	cellArray[index].numChrom = 1;
 	cellArray[index].numPlasmid = 1;
+	//TODO: only if using the injection growth model
 	cellArray[index].injectionDeviation = normalDistRandn(1.0, (VaNoise/100.0));
 
 	cellArray[index].totalRepForks = 0;
@@ -476,6 +466,9 @@ int initialiseCell(Cell * cellArray,
 	cellArray[index].plasmidArray[0].oriC = 1;
 
 	cellArray[index].isFrozen = false;
+
+	//################################# GSL #########################o
+	
 	//copy the initial parameters to cell
 	memcpy(cellArray[index].modelSpecies, modelInitialSpecies, sizeof(double)*NUM_MODELSPECIES);
 	memcpy(cellArray[index].modelParams, modelInitialParams, sizeof(double)*NUM_MODELPARAMS);
@@ -489,12 +482,56 @@ int initialiseCell(Cell * cellArray,
 	}
 
 	// set the gsl ODE solver 
+	/*
 	cellArray[index].sys.function = model_bennett_repressilator; //TODO: pass this from model.c
 	cellArray[index].sys.jacobian = NULL;
 	cellArray[index].sys.dimension = NUM_MODELSPECIES;
 	cellArray[index].sys.params = &cellArray[index].modelParams;
 	
         cellArray[index].driver = gsl_odeiv2_driver_alloc_y_new(&cellArray[index].sys, gsl_odeiv2_step_rkf45, 1e-6, 1e-6, 0.0); //TODO: make the last three inputs part of the model
+	*/
+	//######################## libsbml model #################
+	
+	  if (cellArray[index].d == NULL)
+	{
+	    //return create_myResult_with_errorCode(Unknown);
+	} return 1;
+
+	  err_num = SBMLDocument_getNumErrors(cellArray[index].d);
+	  if (err_num > 0) 
+	  {
+	    const XMLError_t *err = (const XMLError_t *)SBMLDocument_getError(cellArray[index].d, 0);
+	   if (XMLError_isError(err) || XMLError_isFatal(err)) {
+	      XMLErrorCode_t errcode = XMLError_getErrorId(err);
+	      switch (errcode) {
+		case XMLFileUnreadable:
+		  cellArray[index].rtn = create_myResult_with_errorCode(FileNotFound);
+		  break;
+		case XMLFileUnwritable:
+		case XMLFileOperationError:
+		case XMLNetworkAccessError:
+		  cellArray[index].rtn = create_myResult_with_errorCode(SBMLOperationFailed);
+		  break;
+		case InternalXMLParserError:
+		case UnrecognizedXMLParserCode:
+		case XMLTranscoderError:
+		  cellArray[index].rtn = create_myResult_with_errorCode(InternalParserError);
+		  break;
+		case XMLOutOfMemory:
+		  cellArray[index].rtn = create_myResult_with_errorCode(OutOfMemory);
+		  break;
+		case XMLUnknownError:
+		  cellArray[index].rtn = create_myResult_with_errorCode(Unknown);
+		  break;
+		default:
+		  cellArray[index].rtn = create_myResult_with_errorCode(InvalidSBML);
+		  break;
+	      }
+	      SBMLDocument_free(d);
+	      return 1;
+	    }
+	  }
+	  cellArray[index].m = SBMLDocument_getModel(d);
 
 	return 0;
 }
@@ -1726,6 +1763,23 @@ int growCell(Cell * cellArray,
 	{
 		return 2;
 	}
+
+	//################## libsibmlsim ###################
+	//move this to the 
+	  //dt -> must be brought directly
+	  //print_interval = 0;
+	  //print_amount = 0;
+	  //check that dt, dt is a single time step
+	  //cellArray[index].rtn = simulateSBMLModel(cellArray[index].m, dt, dt, print_interval, print_amount, cellArray[index].method, cellArray[index].use_lazy_method, cellArray[index].atol, cellArray[index].rtol, cellArray[index].facmax);
+	  //TODO: time the execution time of this function to see if scalable. If not, need to go deeper and set the parameters that contained in this function
+	  cellArray[index].rtn = simulateSBMLModel(cellArray[index].m, dt, dt, 0, 0, cellArray[index].method, cellArray[index].use_lazy_method, cellArray[index].atol, cellArray[index].rtol, cellArray[index].facmax);
+	  if (rtn == NULL)
+	{
+	    cellArray[index].rtn = create_myResult_with_errorCode(SimulationFailed);
+	    return 1; //<-- not sure about this
+	}
+	  cellArray[index].rtn;
+
 
 	//################# DEBUG: print the cell 0 #############################	
 	/*

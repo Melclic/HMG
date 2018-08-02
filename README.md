@@ -57,6 +57,13 @@ TODO
 
 * [polynomial](https://github.com/wafo-project/pywafo/blob/master/wafo/polynomial.py) - From the pyWafo project
 
+## TODO
+
+- In lib_main.c using call simulate_explicit in the same manner as is implemented in function simulateSBMLModel
+- Simulate plasmid discretely in the model and use the ODE model solved with libsbml and compare
+- Compare libsbml execution time for a single step for a single cell with GSL with the same bennett et al model
+- 
+
 ## Authors
 
 Melchior du Lac
