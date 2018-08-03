@@ -233,12 +233,15 @@ int setModel(Model * model,
 	model->cellPopulation->chromDeg = chromDeg;
 	model->cellPopulation->repForkDeg = repForkDeg;	
 	model->cellPopulation->numFrozenCells = 0;	
+
+	//########################## GSL ######################
+
+	/*
 	memcpy(model->cellPopulation->modelInitialParams, modelInitialParams, sizeof(double)*8); //TODO: don't make this to be hardcoded
 	memcpy(model->cellPopulation->modelInitialSpecies, modelInitialSpecies, sizeof(double)*15); //TODO: same
 	memcpy(model->cellPopulation->modelGeneLocations, modelGeneLocations, sizeof(float)*3); //TODO: same
 	memcpy(model->cellPopulation->modelGeneParamsLocations, modelGeneParamsLocations, sizeof(int)*3); //TODO: same 
 	memcpy(model->cellPopulation->modelGeneLRPos, modelGeneLRPos, sizeof(int)*3); //TODO: same
-	/*
 	memcpy(model->cellPopulation->modelInitialParams, modelInitialParams, sizeof(double)*(NUM_MODELPARAMS+1));
 	memcpy(model->cellPopulation->modelInitialSpecies, modelInitialSpecies, sizeof(double)*(NUM_MODELSPECIES+1));
 	memcpy(model->cellPopulation->modelGeneLocations, modelGeneLocations, sizeof(float)*(NUM_MODELGENES+1));
@@ -342,6 +345,7 @@ int inoculateModel(Model * model)
 				    i,
 				    model->cellPopulation->tau,
 				    model->cellPopulation->C1*(1.0+(model->cellPopulation->C2*exp(-model->cellPopulation->C3/(model->cellPopulation->tau/60.0)))),
+				    //TODO change this so that it is not specific to ColE1 and is valid for minichromosomes and other plasmids
 				    6646.0*(model->cellPopulation->C1*(1.0+(model->cellPopulation->C2*exp(-model->cellPopulation->C3/(model->cellPopulation->tau/60.0)))))/4639221.0, //This is based on the size of the ColE1 in base pairs against the size of the chromosome in base pairs for a bacterial chromosome
 				    model->cellPopulation->cNoise,
 				    model->cellPopulation->D1*(1.0+(model->cellPopulation->D2*exp(-model->cellPopulation->D3/(model->cellPopulation->tau/60.0)))),
@@ -372,7 +376,7 @@ int cleanModel(Model * model)
 	//fclose(f); close the close
 	for(int i=0; i<model->cellPopulation->maxCells; i++)
 	{
-		gsl_odeiv2_driver_free(model->cellPopulation->cellArray[i].driver);
+		//gsl_odeiv2_driver_free(model->cellPopulation->cellArray[i].driver);
 		constructCell(model->cellPopulation->cellArray, i);
 	}	
 	free(model->cellPopulation->cellArray);
@@ -409,9 +413,11 @@ int cleanModel(Model * model)
         model->cellPopulation->lenTotalV = 0;
 
 	//ODE model parameters
+	/*
 	model->cellPopulation->numModelParams = 0;
         model->cellPopulation->numModelSpecies = 0;
 	model->cellPopulation->numModelGenes = 0;
+	*/
 
 	free(model->cellPopulation);
 	model->cellPopulation = NULL;

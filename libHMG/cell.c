@@ -1790,7 +1790,7 @@ int growCell(Cell * cellArray,
 	  //check that dt, dt is a single time step
 	  //cellArray[index].rtn = simulateSBMLModel(cellArray[index].m, dt, dt, print_interval, print_amount, cellArray[index].method, cellArray[index].use_lazy_method, cellArray[index].atol, cellArray[index].rtol, cellArray[index].facmax);
 	  //TODO: time the execution time of this function to see if scalable. If not, need to go deeper and set the parameters that contained in this function
-	cellArray[index].sbml_results = simulateSBMLModel(cellArray[index].sbml_model, dt, dt, 0, 0, cellArray[index].method, cellArray[index].use_lazy_method, cellArray[index].atol, cellArray[index].rtol, cellArray[index].facmax);
+	cellArray[index].sbml_results = simulateSBMLModel(cellArray[index].sbml_model, dt, dt, 0, 0, cellArray[index].sbml_simulation_method, cellArray[index].sbml_use_lazy_method, cellArray[index].sbml_atol, cellArray[index].sbml_rtol, cellArray[index].sbml_facmax);
 	if(cellArray[index].sbml_results==NULL)
 	{
 	    cellArray[index].sbml_results = create_myResult_with_errorCode(SimulationFailed);

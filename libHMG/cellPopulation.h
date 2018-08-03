@@ -101,8 +101,8 @@ typedef struct CELL_POPULATION
 	
 	SBMLDocument_t* sbml_document;
         Model_t* sbml_model;
-        int simulation_method;
-        boolean use_lazy_method;
+        int sbml_simulation_method;
+        boolean sbml_use_lazy_method;
 	
 } CellPopulation;
 
