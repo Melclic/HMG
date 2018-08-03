@@ -164,11 +164,11 @@ typedef struct CELL
 	
 	//################### libsbmlsim#######################
 	
-	myResult *rtn;
-	unsigned int err_num;
-	double ato;// = 0.0;
-	double rtol;// = 0.0;
-	double facmax;// = 0.0;
+	myResult *sbml_results;
+	unsigned int sbml_err_num;
+	double sbml_ato;// = 0.0;
+	double sbml_rtol;// = 0.0;
+	double sbml_facmax;// = 0.0;
 	
 } Cell;
 

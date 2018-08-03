@@ -51,9 +51,9 @@
 //int MAX_CHROM = 32; //64;
 //int LOG2_MAX_REP_TIMERS = 6; //7; //where there can be 64*2 (128) max replication forks on a single chromosome (overkill?)
 //int MAX_PLASMID = 2000;
-int NUM_MODELPARAMS = 8;
-int NUM_MODELSPECIES = 15;
-int NUM_MODELGENES = 3;
+//int NUM_MODELPARAMS = 8;
+//int NUM_MODELSPECIES = 15;
+//int NUM_MODELGENES = 3;
 
 //################################ PRIVATE FUNCTIONS #############################
 /**
@@ -141,6 +141,7 @@ void cDebug(Cell * cellArray, int index)
 			}
 		}
 		//MODEL
+		/*
 		printf("cellArray[%d].modelPrevSumGenes -> [", index);
 		for(i=0; i<NUM_MODELGENES; i++)
 		{
@@ -168,7 +169,7 @@ void cDebug(Cell * cellArray, int index)
 			printf("%f, ", cellArray[index].modelSpecies[i]);
 		}
 		printf("]\n");
-
+		*/
                 //printf("\tAddress-> [");
                 //for(i=0; i<cellArray[index].numChrom; i++)
                 //{
@@ -364,6 +365,7 @@ int constructCell(Cell * cellArray, int index)
 	cellArray[index].segregationTimer2 = 0.0;
 	//cellArray[index].divVol = 0.0;
 	//############## Model parameters ###########
+	/*
 	for(i=0; i<NUM_MODELSPECIES; i++)
 	{
 		cellArray[index].modelSpecies[i] = 0.0;
@@ -380,8 +382,18 @@ int constructCell(Cell * cellArray, int index)
 	{
 		cellArray[index].modelPrevSumGenes[i] = 0;
 	}
+	*/
 
-	
+	//############### libsbmlsim #############	
+
+	if(sbml_results!=NULL)
+	{
+		free_myResult(cellArray[index].sbml_results);
+	}	
+	cellArray[index].sbml_err_num = -1;
+	cellArray[index].sbml_ato = 0.0;
+	cellArray[index].sbml_rtol = 0.0;
+	cellArray[index].sbml_facmax = 0.0;
 
 	return 0;
 }
@@ -470,16 +482,20 @@ int initialiseCell(Cell * cellArray,
 	//################################# GSL #########################o
 	
 	//copy the initial parameters to cell
+	/*
 	memcpy(cellArray[index].modelSpecies, modelInitialSpecies, sizeof(double)*NUM_MODELSPECIES);
 	memcpy(cellArray[index].modelParams, modelInitialParams, sizeof(double)*NUM_MODELPARAMS);
+	*/
 	//memcpy(cellArray[index].modelSpecies, modelInitialSpecies, sizeof(double)*(NUM_MODELSPECIES+1));
 	//memcpy(cellArray[index].modelParams, modelInitialParams, sizeof(double)*(NUM_MODELPARAMS+1));
 	//set the gene copy numbers from the model to 1.0
+	/*
 	for(int i=0; i<NUM_MODELGENES; i++)
 	{
 		cellArray[index].modelSumGenes[i] = 1.0;
 		cellArray[index].modelPrevSumGenes[i] = 1.0;
 	}
+	*/
 
 	// set the gsl ODE solver 
 	/*
@@ -490,13 +506,15 @@ int initialiseCell(Cell * cellArray,
 	
         cellArray[index].driver = gsl_odeiv2_driver_alloc_y_new(&cellArray[index].sys, gsl_odeiv2_step_rkf45, 1e-6, 1e-6, 0.0); //TODO: make the last three inputs part of the model
 	*/
+
 	//######################## libsbml model #################
 	
 	  if (cellArray[index].d == NULL)
 	{
 	    //return create_myResult_with_errorCode(Unknown);
-	} return 1;
-
+		printf("ERROR: The SBML document has not been loaded");
+		return 1;
+	}
 	  err_num = SBMLDocument_getNumErrors(cellArray[index].d);
 	  if (err_num > 0) 
 	  {
@@ -505,26 +523,26 @@ int initialiseCell(Cell * cellArray,
 	      XMLErrorCode_t errcode = XMLError_getErrorId(err);
 	      switch (errcode) {
 		case XMLFileUnreadable:
-		  cellArray[index].rtn = create_myResult_with_errorCode(FileNotFound);
+		  cellArray[index].sbml_results = create_myResult_with_errorCode(FileNotFound);
 		  break;
 		case XMLFileUnwritable:
 		case XMLFileOperationError:
 		case XMLNetworkAccessError:
-		  cellArray[index].rtn = create_myResult_with_errorCode(SBMLOperationFailed);
+		  cellArray[index].sbml_results = create_myResult_with_errorCode(SBMLOperationFailed);
 		  break;
 		case InternalXMLParserError:
 		case UnrecognizedXMLParserCode:
 		case XMLTranscoderError:
-		  cellArray[index].rtn = create_myResult_with_errorCode(InternalParserError);
+		  cellArray[index].sbml_results = create_myResult_with_errorCode(InternalParserError);
 		  break;
 		case XMLOutOfMemory:
-		  cellArray[index].rtn = create_myResult_with_errorCode(OutOfMemory);
+		  cellArray[index].sbml_results = create_myResult_with_errorCode(OutOfMemory);
 		  break;
 		case XMLUnknownError:
-		  cellArray[index].rtn = create_myResult_with_errorCode(Unknown);
+		  cellArray[index].sbml_results = create_myResult_with_errorCode(Unknown);
 		  break;
 		default:
-		  cellArray[index].rtn = create_myResult_with_errorCode(InvalidSBML);
+		  cellArray[index].sbml_results = create_myResult_with_errorCode(InvalidSBML);
 		  break;
 	      }
 	      SBMLDocument_free(d);
@@ -1772,13 +1790,12 @@ int growCell(Cell * cellArray,
 	  //check that dt, dt is a single time step
 	  //cellArray[index].rtn = simulateSBMLModel(cellArray[index].m, dt, dt, print_interval, print_amount, cellArray[index].method, cellArray[index].use_lazy_method, cellArray[index].atol, cellArray[index].rtol, cellArray[index].facmax);
 	  //TODO: time the execution time of this function to see if scalable. If not, need to go deeper and set the parameters that contained in this function
-	  cellArray[index].rtn = simulateSBMLModel(cellArray[index].m, dt, dt, 0, 0, cellArray[index].method, cellArray[index].use_lazy_method, cellArray[index].atol, cellArray[index].rtol, cellArray[index].facmax);
-	  if (rtn == NULL)
+	cellArray[index].sbml_results = simulateSBMLModel(cellArray[index].sbml_model, dt, dt, 0, 0, cellArray[index].method, cellArray[index].use_lazy_method, cellArray[index].atol, cellArray[index].rtol, cellArray[index].facmax);
+	if(cellArray[index].sbml_results==NULL)
 	{
-	    cellArray[index].rtn = create_myResult_with_errorCode(SimulationFailed);
+	    cellArray[index].sbml_results = create_myResult_with_errorCode(SimulationFailed);
 	    return 1; //<-- not sure about this
 	}
-	  cellArray[index].rtn;
 
 
 	//################# DEBUG: print the cell 0 #############################	

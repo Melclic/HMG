@@ -1,8 +1,0 @@
-<map id="cell.h" name="cell.h">
-<area shape="rect" id="node2" href="$cell_8c.html" title="cell.c" alt="" coords="5,80,59,107"/>
-<area shape="rect" id="node3" href="$cell_population_8h.html" title="cellPopulation.h" alt="" coords="159,80,273,107"/>
-<area shape="rect" id="node5" href="$model_8c.html" title="model.c" alt="" coords="113,229,181,256"/>
-<area shape="rect" id="node4" href="$cell_population_8c.html" title="cellPopulation.c" alt="" coords="184,155,299,181"/>
-<area shape="rect" id="node6" href="$model_8h.html" title="model.h" alt="" coords="323,155,391,181"/>
-<area shape="rect" id="node7" href="$py_connect_8c.html" title="pyConnect.c" alt="" coords="309,229,405,256"/>
-</map>

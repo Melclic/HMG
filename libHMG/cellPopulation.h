@@ -20,7 +20,8 @@
 /**
 * @file cellPopulation.h
 *
-* Cell Population header file that grows the population
+* Cell Population header file that grows the population. Note that the main reason we are enforcing this structure 
+* so that if one needs to study the interactions between two different cell types that have different cell cycle dynamics then one is able to specufy different array space in the allocated memory and cell cycle, noise parameters and SBML model
 *
 * @version 1.0
 * @author Melchior du Lac
@@ -63,9 +64,11 @@ typedef struct CELL_POPULATION
 	float repForkDeg; /**< Probability term that determines if the replicating strand experiences DNA damage that leads to its collapse. True if >= random number generated from a Gaussian distribution of mean 0 and standard deiation of 1.*/
 	int numFrozenCells; /**< Count of the number of cells that have reached maximal chromosome number (64)*/
 	int numAnucleateCells; /**< Count of the number of cells that have all their chromosomes degraded*/
-	int numModelParams; /**< Number of params for the modelInitialsParams*/
-	int numModelSpecies; /**< Number of species for the modelInitialSpecies array*/
-	int numModelGenes; /**< Number of species for the modelInitialSpecies array*/
+	
+	//int numModelParams; /**< Number of params for the modelInitialsParams*/
+	//int numModelSpecies; /**< Number of species for the modelInitialSpecies array*/
+	//int numModelGenes; /**< Number of species for the modelInitialSpecies array*/
+	
 	float tau; /**< cell doubling time (min) */
 	float C1; /**< functional form of the replication rate (C)*/
 	float C2; /**< functional form of the replication rate (C)*/
@@ -83,11 +86,11 @@ typedef struct CELL_POPULATION
 	//float modelGeneLocations[3]; /**< Location on the chromosome (between 0.0 and 100.0, expressed in %) of the gene in the model*/
 	//int modelGeneLRPos[3]; /**< Position of the gene on either the left or right hand side of the chromosome; where 0 -> right, 1 -> left*/
 	//int modelGeneParamsLocations[3]; /**< Location of the parameteris in the model (note not species) that describes the copy number of a gene in particular */
-	double modelInitialParams[8]; /**< Initial params of the model*/
-	double modelInitialSpecies[15]; /**< Initial species of the model*/
-	float modelGeneLocations[3]; /**< Location on the chromosome (between 0.0 and 100.0, expressed in %) of the gene in the model*/
-	int modelGeneLRPos[3]; /**< Position of the gene on either the left or right hand side of the chromosome; where 0 -> right, 1 -> left*/
-	int modelGeneParamsLocations[3]; /**< Location of the parameteris in the model (note not species) that describes the copy number of a gene in particular */
+	//double modelInitialParams[8]; /**< Initial params of the model*/
+	//double modelInitialSpecies[15]; /**< Initial species of the model*/
+	//float modelGeneLocations[3]; /**< Location on the chromosome (between 0.0 and 100.0, expressed in %) of the gene in the model*/
+	//int modelGeneLRPos[3]; /**< Position of the gene on either the left or right hand side of the chromosome; where 0 -> right, 1 -> left*/
+	//int modelGeneParamsLocations[3]; /**< Location of the parameteris in the model (note not species) that describes the copy number of a gene in particular */
 	//double modelInitialParams[NUM_MODELPARAMS]; /**< Initial params of the model*/
 	//double modelInitialSpecies[NUM_MODELSPECIES]; /**< Initial species of the model*/
 	//float modelGeneLocations[NUM_MODELGENES]; /**< Location on the chromosome (between 0.0 and 100.0, expressed in %) of the gene in the model*/
@@ -95,9 +98,10 @@ typedef struct CELL_POPULATION
 	//int modelGeneParamsLocations[NUM_MODELGENES]; /**< Location of the parameteris in the model (note not species) that describes the copy number of a gene in particular */
 	
 	//####################### libsbmlsim ##############
-	SBMLDocument_t* d;
-        Model_t* m;
-        int method;
+	
+	SBMLDocument_t* sbml_document;
+        Model_t* sbml_model;
+        int simulation_method;
         boolean use_lazy_method;
 	
 } CellPopulation;
