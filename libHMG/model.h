@@ -43,10 +43,10 @@
 */
 typedef struct MODEL
 {
-	float dt; /**< Time step */
-	float t; /**< Current time of the simulation*/
-	int stop; /**< Boolean controlling if to terminate the simulation*/
-	CellPopulation * cellPopulation; /**< Struct of population*/
+    float dt; /**< Time step */
+    float t; /**< Current time of the simulation*/
+    int stop; /**< Boolean controlling if to terminate the simulation*/
+    CellPopulation * cellPopulation; /**< Struct of population*/
 } Model;
 
 //####### GETTERS ##########
@@ -96,10 +96,10 @@ int setModel(Model * model,
                 float dt);
 
 int runInjection(Model * model,
-		float maximalExecTime,
-		int restrictCellNumber,
-		double * totalVolumes,
-		int lenTotalV);
+        float maximalExecTime,
+        int restrictCellNumber,
+        double * totalVolumes,
+        int lenTotalV);
 
 int runExpo(Model * model, float maximalExecTime, int targetCellCount);
 

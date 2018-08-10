@@ -73,63 +73,63 @@ Model * model;
 * @return Error handling integer
 */
 int pyCall_initModel(float cNoise, 
-			float dNoise, 
-			float Vi, 
-			float Vi_plasmid, 
-			float ViNoise, 
-			float VaNoise, 
-			float chanceInit, 
-			float divNoise, 
-			float divRatio, 
-			float partRatio, 
-			float partNoise, 
-			float chromDeg, 
-			float repForkDeg, 
-			int maxCells,
-			float C1,
-			float C2,
-			float C3,
-			float D1,
-			float D2,
-			float D3,
-			float tau,
-			double * modelInitialParams, 
-			double * modelInitialSpecies, 
-			float * modelGeneLocations, 
-			int * modelGeneParamsLocations, 
-			int * modelGeneLRPos, 
-			float dt)
+            float dNoise, 
+            float Vi, 
+            float Vi_plasmid, 
+            float ViNoise, 
+            float VaNoise, 
+            float chanceInit, 
+            float divNoise, 
+            float divRatio, 
+            float partRatio, 
+            float partNoise, 
+            float chromDeg, 
+            float repForkDeg, 
+            int maxCells,
+            float C1,
+            float C2,
+            float C3,
+            float D1,
+            float D2,
+            float D3,
+            float tau,
+            double * modelInitialParams, 
+            double * modelInitialSpecies, 
+            float * modelGeneLocations, 
+            int * modelGeneParamsLocations, 
+            int * modelGeneLRPos, 
+            float dt)
 {
-	model = initModel(maxCells);
-	setModel(model,
-		tau,
-		cNoise,
-		dNoise,
-		Vi,
-		Vi_plasmid,
-		ViNoise,
-		VaNoise,
-		chanceInit,
-		divNoise,
-		divRatio,
-		partRatio,
-		partNoise,
-		chromDeg,
-		repForkDeg,
-		C1,
-		C2,
-		C3,
-		D1,
-		D2,
-		D3,
-		modelInitialParams,
-		modelInitialSpecies,
-		modelGeneLocations,
-		modelGeneParamsLocations,
-		modelGeneLRPos,
-		dt);
-	inoculateModel(model);
-	return 0;
+    model = initModel(maxCells);
+    setModel(model,
+        tau,
+        cNoise,
+        dNoise,
+        Vi,
+        Vi_plasmid,
+        ViNoise,
+        VaNoise,
+        chanceInit,
+        divNoise,
+        divRatio,
+        partRatio,
+        partNoise,
+        chromDeg,
+        repForkDeg,
+        C1,
+        C2,
+        C3,
+        D1,
+        D2,
+        D3,
+        modelInitialParams,
+        modelInitialSpecies,
+        modelGeneLocations,
+        modelGeneParamsLocations,
+        modelGeneLRPos,
+        dt);
+    inoculateModel(model);
+    return 0;
 }
 
 /**
@@ -145,10 +145,10 @@ int pyCall_initModel(float cNoise,
 */
 int pyCall_runInjection(float maximalExecTime,
                         int restrictCellNumber,
-			double * totalVolumes,
-			int lenTotalV)
+                        double * totalVolumes,
+                        int lenTotalV)
 {
-	return runInjection(model,
+    return runInjection(model,
                         maximalExecTime,
                         restrictCellNumber,
                         totalVolumes,
@@ -166,7 +166,7 @@ int pyCall_runInjection(float maximalExecTime,
  */
 int pyCall_runExpo(float maximalExecTime, int targetCellCount)
 {
-	return runExpo(model, maximalExecTime, targetCellCount);
+    return runExpo(model, maximalExecTime, targetCellCount);
 }
 
 //#####################################################################################
@@ -182,7 +182,7 @@ int pyCall_runExpo(float maximalExecTime, int targetCellCount)
 */
 float pyCall_meanPopC()
 {
-	return meanPopC(model);
+    return meanPopC(model);
 }
 
 /**
@@ -195,7 +195,7 @@ float pyCall_meanPopC()
 */
 int pyCall_getDistC(float * CContent)
 {
-        return getDistC(model, CContent);
+    return getDistC(model, CContent);
 }
 
 /**
@@ -207,7 +207,7 @@ int pyCall_getDistC(float * CContent)
 */
 float pyCall_meanPopD()
 {
-	return meanPopD(model);
+    return meanPopD(model);
 }
 
 /**
@@ -220,9 +220,9 @@ float pyCall_meanPopD()
 */
 int pyCall_restrictNumCells(int targetNumCells)
 {
-	int toRet = randomRestrictNumCells(model, targetNumCells);
-	model->cellPopulation->numCells = targetNumCells;
-	return toRet;
+    int toRet = randomRestrictNumCells(model, targetNumCells);
+    model->cellPopulation->numCells = targetNumCells;
+    return toRet;
 }
 
 /**
@@ -237,7 +237,7 @@ int pyCall_restrictNumCells(int targetNumCells)
 */
 float pyCall_getNumExposedGenes(int ** numExposed, float percLoc, int LR)
 {
-        return getNumExposedGenes(model, numExposed, percLoc, LR);
+    return getNumExposedGenes(model, numExposed, percLoc, LR);
 }
 
 //######################## GETTERS ###################
@@ -251,7 +251,7 @@ float pyCall_getNumExposedGenes(int ** numExposed, float percLoc, int LR)
 */
 float pyCall_getTotalVolume()
 {
-	return getTotalVolume(model);
+    return getTotalVolume(model);
 }
 
 /**
@@ -263,8 +263,8 @@ float pyCall_getTotalVolume()
 */
 int pyCall_getRealNumCells()
 {
-	//return getNumCells(model);
-	return getRealNumCells(model);
+    //return getNumCells(model);
+    return getRealNumCells(model);
 }
 
 /**
@@ -276,7 +276,7 @@ int pyCall_getRealNumCells()
  */
 int pyCall_getNumCells()
 {
-        return model->cellPopulation->numCells;
+    return model->cellPopulation->numCells;
 }
 
 /**
@@ -288,7 +288,7 @@ int pyCall_getNumCells()
  */
 int pyCall_getNumAnucleateCells()
 {
-        return model->cellPopulation->numAnucleateCells;
+    return model->cellPopulation->numAnucleateCells;
 }
 
 /**
@@ -301,7 +301,7 @@ int pyCall_getNumAnucleateCells()
 */
 int pyCall_getDistGa(float * DNAContent)
 {
-	return getDistGa(model, DNAContent);
+    return getDistGa(model, DNAContent);
 }
 
 /**
@@ -314,7 +314,7 @@ int pyCall_getDistGa(float * DNAContent)
 */
 int pyCall_getDistTau(float * tauContent)
 {
-	return getDistTau(model, tauContent);
+    return getDistTau(model, tauContent);
 }
 
 /**
@@ -327,7 +327,7 @@ int pyCall_getDistTau(float * tauContent)
 */
 int pyCall_getDistVa(float * VContent)
 {
-	return getDistVa(model, VContent);
+    return getDistVa(model, VContent);
 }
 
 /**
@@ -340,7 +340,7 @@ int pyCall_getDistVa(float * VContent)
 */
 int pyCall_getDistPrev_a(float * dist_a)
 {
-	return getDistPrev_a(model, dist_a);
+    return getDistPrev_a(model, dist_a);
 }
 
 /**
@@ -353,7 +353,7 @@ int pyCall_getDistPrev_a(float * dist_a)
 */
 int pyCall_getDistPrev_Vb(float * dist_Vb)
 {
-	return getDistPrev_Vb(model, dist_Vb);
+    return getDistPrev_Vb(model, dist_Vb);
 }
 
 /**
@@ -366,7 +366,7 @@ int pyCall_getDistPrev_Vb(float * dist_Vb)
 */
 int pyCall_getDistPrev_Vd(float * dist_Vd)
 {
-	return getDistPrev_Vd(model, dist_Vd);
+    return getDistPrev_Vd(model, dist_Vd);
 }
 
 /**
@@ -379,7 +379,7 @@ int pyCall_getDistPrev_Vd(float * dist_Vd)
 */
 int pyCall_getDistAge(float * age)
 {
-	return getDistAge(model, age);
+    return getDistAge(model, age);
 }
 
 /**
@@ -391,7 +391,7 @@ int pyCall_getDistAge(float * age)
 */
 float pyCall_getMeanVa()
 {
-	return getMeanVa(model);
+    return getMeanVa(model);
 }
 
 /**
@@ -403,7 +403,7 @@ float pyCall_getMeanVa()
 */
 float pyCall_getStdVa()
 {
-	return getStdVa(model);
+    return getStdVa(model);
 }
 
 /**
@@ -415,7 +415,7 @@ float pyCall_getStdVa()
 */
 float pyCall_getMeanTau()
 {
-	return getMeanTau(model);
+    return getMeanTau(model);
 }
 
 /**
@@ -427,7 +427,7 @@ float pyCall_getMeanTau()
 */
 float pyCall_getStdTau()
 {
-	return getStdTau(model);
+    return getStdTau(model);
 }
 
 
@@ -440,9 +440,9 @@ float pyCall_getStdTau()
 */
 int pyCall_cleanModel()
 {
-	int toRet = cleanModel(model);
-	model = NULL;
-	return toRet;
+    int toRet = cleanModel(model);
+    model = NULL;
+    return toRet;
 }
 
 /**
@@ -455,7 +455,7 @@ int pyCall_cleanModel()
 **/
 double pyCall_getMeanModelSpecies(int speciesNum)
 {
-	return getMeanModelSpecies(model, speciesNum);
+    return getMeanModelSpecies(model, speciesNum);
 }
 
 /**
@@ -469,7 +469,7 @@ double pyCall_getMeanModelSpecies(int speciesNum)
 **/
 double pyCall_getSingleModelSpecies(int speciesNum, int cellNum)
 {
-	return getSingleModelSpecies(model, speciesNum, cellNum);
+    return getSingleModelSpecies(model, speciesNum, cellNum);
 }
 
 /**
@@ -481,7 +481,7 @@ double pyCall_getSingleModelSpecies(int speciesNum, int cellNum)
  */
 int pyCall_oneTimeStep()
 {
-	return oneTimeStep(model);
+    return oneTimeStep(model);
 }
 
 /**
@@ -494,7 +494,7 @@ int pyCall_oneTimeStep()
  */
 float pyCall_getCellVa(int cellNum)
 {
-	return model->cellPopulation->cellArray[cellNum].Va;
+    return model->cellPopulation->cellArray[cellNum].Va;
 }
 
 /**
@@ -507,7 +507,7 @@ float pyCall_getCellVa(int cellNum)
  */
 float pyCall_getCellGa(int cellNum)
 {
-	return model->cellPopulation->cellArray[cellNum].Ga;
+    return model->cellPopulation->cellArray[cellNum].Ga;
 }
 
 /**
@@ -521,7 +521,7 @@ float pyCall_getCellGa(int cellNum)
  */
 int pyCall_runDrugTreatment(float maximalExecTime, int targetCellCount, float drugNoise)
 {
-	return runDrugTreatment(model, maximalExecTime, targetCellCount, drugNoise);
+    return runDrugTreatment(model, maximalExecTime, targetCellCount, drugNoise);
 }
 
 /**

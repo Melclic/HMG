@@ -38,23 +38,23 @@
 /*
 int nestedFindBlockedRep(CellPopulation * cellPopulation, int i)
 {
-	int y, j, z;
-	for(y=0; y<cellPopulation->cellArray[i].numChrom; y++)
-	{
-		for(j=0; j<cellPopulation->cellArray[i].chromArray[y].potentialOriC; j++)
-		{
-			for(z=0; z<pow(2,y); z++)
-			{
-				if(cellPopulation->cellArray[i].chromArray[y].replicationTimers[j][z][0]==-2.0 &&
-				cellPopulation->cellArray[i].chromArray[y].replicationTimers[j][z][1]==-2.0)
-				{
-					return i;
-				}
-			}
+    int y, j, z;
+    for(y=0; y<cellPopulation->cellArray[i].numChrom; y++)
+    {
+        for(j=0; j<cellPopulation->cellArray[i].chromArray[y].potentialOriC; j++)
+        {
+            for(z=0; z<pow(2,y); z++)
+            {
+                if(cellPopulation->cellArray[i].chromArray[y].replicationTimers[j][z][0]==-2.0 &&
+                cellPopulation->cellArray[i].chromArray[y].replicationTimers[j][z][1]==-2.0)
+                {
+                    return i;
+                }
+            }
 
-		}
-	}
-	return -1;	
+        }
+    }
+    return -1;  
 }
 */
 
@@ -71,17 +71,17 @@ int nestedFindBlockedRep(CellPopulation * cellPopulation, int i)
 */
 int growCells(CellPopulation * cellPopulation, float dt, float volumeAdd, bool isDrugTreat)
 {
-        int stopFlag = 0;
-        int i, y;
-        //Need to keep track of two different dynamically allocated arrays
-        //for(i=0; i<cellPopulation->maxCells; i++)
-	//clock_t begin = clock();
-        for(i=0; i<cellPopulation->indexArray; i++)
+    int stopFlag = 0;
+    int i, y;
+    //Need to keep track of two different dynamically allocated arrays
+    //for(i=0; i<cellPopulation->maxCells; i++)
+//clock_t begin = clock();
+    for(i=0; i<cellPopulation->indexArray; i++)
+    {
+        if(cellPopulation->cellArray[i].isDead==false && cellPopulation->cellArray[i].isNewlyRep==false && cellPopulation->cellArray[i].isFrozen==false)
         {
-                if(cellPopulation->cellArray[i].isDead==false && cellPopulation->cellArray[i].isNewlyRep==false && cellPopulation->cellArray[i].isFrozen==false)
-                {
-			//clock_t begin = clock();
-                        stopFlag = growCell(cellPopulation->cellArray,
+            //clock_t begin = clock();
+            stopFlag = growCell(cellPopulation->cellArray,
                                 i,
                                 cellPopulation->freeIndex,
                                 cellPopulation->tau,
@@ -92,113 +92,108 @@ int growCells(CellPopulation * cellPopulation, float dt, float volumeAdd, bool i
                                 cellPopulation->ViNoise,
                                 cellPopulation->VaNoise,
                                 cellPopulation->chanceInit,
-				cellPopulation->divRatio,
+                                cellPopulation->divRatio,
                                 cellPopulation->divNoise,
-				cellPopulation->partRatio,
-				cellPopulation->partNoise,
-				cellPopulation->chromDeg, 
-				cellPopulation->repForkDeg,
-				cellPopulation->numCells,
-				cellPopulation->C1,
-				cellPopulation->C2,
-				cellPopulation->C3,
-				cellPopulation->D1,
-				cellPopulation->D2,
-				cellPopulation->D3,
+                                cellPopulation->partRatio,
+                                cellPopulation->partNoise,
+                                cellPopulation->chromDeg, 
+                                cellPopulation->repForkDeg,
+                                cellPopulation->numCells,
+                                cellPopulation->C1,
+                                cellPopulation->C2,
+                                cellPopulation->C3,
+                                cellPopulation->D1,
+                                cellPopulation->D2,
+                                cellPopulation->D3,
                                 dt,
                                 volumeAdd,
-				cellPopulation->modelGeneParamsLocations,
-				cellPopulation->modelGeneLocations,
-				cellPopulation->modelGeneLRPos,
-				isDrugTreat);
-
-			//printf("\tgrowCell: %Lf\n", (long float)(clock()-begin));
-			
-                        if(stopFlag==1)
-                        {
-                                //printf("WARNING (growCells): Setting cell %d back to factory settings\n", i);
-                                printf("WARNING (growCells): Freezing cell %d \n", i);
-				cellPopulation->cellArray[i].isFrozen = true;
-				cellPopulation->numFrozenCells += 1;
-                                //constructCell(cellPopulation->cellArray, i);
-                                //cellPopulation->numCells--;
-                        }
-			else if(stopFlag==2)
-			{
-                                //printf("WARNING (growCells): Anucleate cell (2) %d \n", i);
-                                constructCell(cellPopulation->cellArray, i);
-				cellPopulation->numCells--;
-				cellPopulation->numAnucleateCells += 1;
-				cellPopulation->freeIndex = i;
-				//return 1;
-			}
-			else if(stopFlag==3)
-			{
-                                //printf("WARNING (growCells): Anucleate cell (3) %d \n", i);
-				cellPopulation->numAnucleateCells += 1;
-				//cellPopulation->numCells--;
-			}
-                        //find a new index space if the space has been taken by a newly divided cell
-                        //avoids having to loop throught the whole array everytime you update a cell
-                        if(cellPopulation->cellArray[cellPopulation->freeIndex].isDead==false)
-                        {
-				//Although we miss one time step using this method it is better than the rest
-				if(cellPopulation->indexArray>=cellPopulation->maxCells-5 || cellPopulation->numCells>=cellPopulation->maxCells-5)
-				{
-					printf("WARNING (growCells): maxCells (%d) or indexArray (%d) limit has been reached (%d)\n", cellPopulation->maxCells, cellPopulation->indexArray, cellPopulation->numCells);
-					return 2;
-				}
-
-				if(cellPopulation->freeIndex==cellPopulation->indexArray)
-                                {
-                                        cellPopulation->indexArray += 1;
-                                }
-                                cellPopulation->numCells += 1;
-                                cellPopulation->freeIndex = cellPopulation->indexArray;
-                        }
-                }
-                //if there is a cell that is detected to be dead (because it has been randonmly killed), then use that posisition for newly grown cells
-                else if(cellPopulation->cellArray[i].isDead==true)
+                                cellPopulation->modelGeneParamsLocations,
+                                cellPopulation->modelGeneLocations,
+                                cellPopulation->modelGeneLRPos,
+                                isDrugTreat);
+            //printf("\tgrowCell: %Lf\n", (long float)(clock()-begin));
+            if(stopFlag==1)
+            {
+                //printf("WARNING (growCells): Setting cell %d back to factory settings\n", i);
+                printf("WARNING (growCells): Freezing cell %d \n", i);
+                cellPopulation->cellArray[i].isFrozen = true;
+                cellPopulation->numFrozenCells += 1;
+                //constructCell(cellPopulation->cellArray, i);
+                //cellPopulation->numCells--;
+            }
+            else if(stopFlag==2)
+            {
+                //printf("WARNING (growCells): Anucleate cell (2) %d \n", i);
+                constructCell(cellPopulation->cellArray, i);
+                cellPopulation->numCells--;
+                cellPopulation->numAnucleateCells += 1;
+                cellPopulation->freeIndex = i;
+                //return 1;
+            }
+            else if(stopFlag==3)
+            {
+                //printf("WARNING (growCells): Anucleate cell (3) %d \n", i);
+                cellPopulation->numAnucleateCells += 1;
+                //cellPopulation->numCells--;
+            }
+            //find a new index space if the space has been taken by a newly divided cell
+            //avoids having to loop throught the whole array everytime you update a cell
+            if(cellPopulation->cellArray[cellPopulation->freeIndex].isDead==false)
+            {
+                //Although we miss one time step using this method it is better than the rest
+                if(cellPopulation->indexArray>=cellPopulation->maxCells-5 || cellPopulation->numCells>=cellPopulation->maxCells-5)
                 {
-			if(cellPopulation->cellArray[cellPopulation->freeIndex].isDead==false)
-			{
-                        	cellPopulation->freeIndex = i;
-			}
-			else if(cellPopulation->freeIndex>i)
-			{
-				cellPopulation->freeIndex = i;
-			}			
+                    printf("WARNING (growCells): maxCells (%d) or indexArray (%d) limit has been reached (%d)\n", cellPopulation->maxCells, cellPopulation->indexArray, cellPopulation->numCells);
+                    return 2;
                 }
-                //this makes sure that if the cells has been newly replicated, it is not updated by growCell, this makes sure it is reset so the next time step it can be grown
-                else if(cellPopulation->cellArray[i].isNewlyRep==true)
+
+                if(cellPopulation->freeIndex==cellPopulation->indexArray)
                 {
-                        cellPopulation->cellArray[i].isNewlyRep = false;
+                    cellPopulation->indexArray += 1;
                 }
+                cellPopulation->numCells += 1;
+                cellPopulation->freeIndex = cellPopulation->indexArray;
+            }
         }
-
-	//DEBUG
-	/*
-	if((long float)(clock()-begin)/CLOCKS_PER_SEC>0.1)
-	{
-		cellDebug(cellPopulation->cellArray, i);		
-		printf("\tgrowCells: %Lf\n", (long float)(clock()-begin)/CLOCKS_PER_SEC);
-	}
-	*/
-
-
-	//stop the simulation if there are more than 25% of the cells that are isFrozen
-	//if((cellPopulation->numFrozenCells>=cellPopulation->numCells-10 && cellPopulation->numCells>50) || cellPopulation->numFrozenCells==cellPopulation->numCells)
-	if((cellPopulation->numFrozenCells>=((int)cellPopulation->numCells/4) && cellPopulation->numCells>50) || (cellPopulation->numFrozenCells==cellPopulation->numCells && cellPopulation->numCells>50))
-	{
-		printf("ERROR (growCells): Number of isFrozen cells exceeds threshold (%d)\n", cellPopulation->numFrozenCells);
-		return 1;
-	}
-	if(cellPopulation->numCells<=0)
-	{
-		printf("ERROR (growCells): There are no cells!\n");
-		return 1;
-	}
-        return 0;
+        //if there is a cell that is detected to be dead (because it has been randonmly killed), then use that posisition for newly grown cells
+        else if(cellPopulation->cellArray[i].isDead==true)
+        {
+            if(cellPopulation->cellArray[cellPopulation->freeIndex].isDead==false)
+            {
+                cellPopulation->freeIndex = i;
+            }
+            else if(cellPopulation->freeIndex>i)
+            {
+                cellPopulation->freeIndex = i;
+            }           
+        }
+        //this makes sure that if the cells has been newly replicated, it is not updated by growCell, this makes sure it is reset so the next time step it can be grown
+        else if(cellPopulation->cellArray[i].isNewlyRep==true)
+        {
+            cellPopulation->cellArray[i].isNewlyRep = false;
+        }
+    }
+    //DEBUG
+    /*
+    if((long float)(clock()-begin)/CLOCKS_PER_SEC>0.1)
+    {
+        cellDebug(cellPopulation->cellArray, i);        
+        printf("\tgrowCells: %Lf\n", (long float)(clock()-begin)/CLOCKS_PER_SEC);
+    }
+    */
+    //stop the simulation if there are more than 25% of the cells that are isFrozen
+    //if((cellPopulation->numFrozenCells>=cellPopulation->numCells-10 && cellPopulation->numCells>50) || cellPopulation->numFrozenCells==cellPopulation->numCells)
+    if((cellPopulation->numFrozenCells>=((int)cellPopulation->numCells/4) && cellPopulation->numCells>50) || (cellPopulation->numFrozenCells==cellPopulation->numCells && cellPopulation->numCells>50))
+    {
+        printf("ERROR (growCells): Number of isFrozen cells exceeds threshold (%d)\n", cellPopulation->numFrozenCells);
+        return 1;
+    }
+    if(cellPopulation->numCells<=0)
+    {
+        printf("ERROR (growCells): There are no cells!\n");
+        return 1;
+    }
+    return 0;
 }
 
 //TODO: add a clean cells functions to make cleaning of the model easier
