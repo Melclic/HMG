@@ -41,6 +41,7 @@
 #include "utility.h"
 #include "inputModel.h"
 
+#include "../libsbmlsim/libsbmlsim.h"
 
 //FILE *f; <---- tmp need to find a better way to output this instead of hardcoding it
 
@@ -250,49 +251,57 @@ int setModel(Model * model,
     */
 
     //############################ libsbmlsim ##################    
-    if(cellArray[index].d==NULL)
+    set_seed(); //sbml model random number generator seed function
+    if(cellArray[index].sbml_document==NULL)
     {
         //return create_myResult_with_errorCode(Unknown);
-        return 1;
+        //return 1;
+        exit(EXIT_FAILURE);
     }
-    err_num = SBMLDocument_getNumErrors(cellArray[index].d);
+    err_num = SBMLDocument_getNumErrors(cellArray[index].sbml_document);
     if(err_num>0)
     {
-        const XMLError_t *err = (const XMLError_t *)SBMLDocument_getError(cellArray[index].d, 0);
+        const XMLError_t *err = (const XMLError_t *)SBMLDocument_getError(cellArray[index].sbml_document, 0);
         if(XMLError_isError(err) || XMLError_isFatal(err))
         {
+            //here we test openin the SBL file. Problem is that the result of opening is returned in the form
+            //of the SBML results. Thus define a tmp result parameter that is freed, then for every new cell set
+            //model
+            myResult* sbml_results;
             XMLErrorCode_t errcode = XMLError_getErrorId(err);
             switch (errcode)
             {
                 case XMLFileUnreadable:
-                    cellArray[index].rtn = create_myResult_with_errorCode(FileNotFound);
+                    sbml_results = create_myResult_with_errorCode(FileNotFound);
                     break;
                 case XMLFileUnwritable:
                 case XMLFileOperationError:
                 case XMLNetworkAccessError:
-                    cellArray[index].rtn = create_myResult_with_errorCode(SBMLOperationFailed);
+                    sbml_results = create_myResult_with_errorCode(SBMLOperationFailed);
                     break;
                 case InternalXMLParserError:
                 case UnrecognizedXMLParserCode:
                 case XMLTranscoderError:
-                    cellArray[index].rtn = create_myResult_with_errorCode(InternalParserError);
+                    sbml_results = create_myResult_with_errorCode(InternalParserError);
                     break;
                 case XMLOutOfMemory:
-                    cellArray[index].rtn = create_myResult_with_errorCode(OutOfMemory);
+                    sbml_results = create_myResult_with_errorCode(OutOfMemory);
                     break;
                 case XMLUnknownError:
-                    cellArray[index].rtn = create_myResult_with_errorCode(Unknown);
+                    sbml_results = create_myResult_with_errorCode(Unknown);
                     break;
                 default:
-                    cellArray[index].rtn = create_myResult_with_errorCode(InvalidSBML);
+                    sbml_results = create_myResult_with_errorCode(InvalidSBML);
                     break;
             }
-            SBMLDocument_free(model->cellPopulation->d);
-            cellArray[index].rtn;
-            return 1;
+            //send the whole model to be free
+            //SBMLDocument_free(model->cellPopulation->sbml_document);
+            cellArray[index].sbml_results;
+            //return 1;
+            exit(EXIT_FAILURE);
         }
     }
-    model->cellPopulation->m = SBMLDocument_getModel(d);
+    model->cellPopulation->sbml_model = SBMLDocument_getModel(sbml_document);
     return 0;
 }
 
@@ -371,7 +380,7 @@ int inoculateModel(Model * model)
 */
 int cleanModel(Model * model)
 {
-    //fclose(f); close the close
+    //fclose(f); close the file
     for(int i=0; i<model->cellPopulation->maxCells; i++)
     {
         //gsl_odeiv2_driver_free(model->cellPopulation->cellArray[i].driver);
@@ -417,7 +426,7 @@ int cleanModel(Model * model)
     model->cellPopulation->numModelGenes = 0;
     */
 
-    //libsbml
+    //libsbmlsim 
 	SBMLDocument_free(model->cellPopulation->sbml_document);
     Model_t* sbml_model;
 	free_mySBML_objects(model->cellPopulation->sbml_model, mySp, myParam, myComp, myRe, myRu, myEv,
@@ -2330,6 +2339,43 @@ int oneTimeStep(Model * model)
     return 0;
 }
 
+
+//This is in case you want to access a single SBML model parameters whilst you are looping through it
+        /* print result */
+        /*
+        if(cycle%print_interval == 0) {
+          //  Time 
+          *value_time_p = *time;
+          value_time_p++;
+          //  Species 
+          for(i=0; i<num_of_species; i++){
+            if(print_amount){
+              if(sp[i]->is_concentration){
+                *value_sp_p = sp[i]->value*sp[i]->locating_compartment->value;
+              }else{
+                *value_sp_p = sp[i]->value;
+              }
+            }else{
+              if(sp[i]->is_amount){
+                *value_sp_p = sp[i]->value/sp[i]->locating_compartment->value;
+              }else{
+                *value_sp_p = sp[i]->value;
+              }
+            }
+            value_sp_p++;
+          }
+          //  Parameter 
+          for(i=0; i<num_of_parameters; i++){
+            *value_param_p = param[i]->value;
+            value_param_p++;
+          }
+          //  Compartment 
+          for(i=0; i<num_of_compartments; i++){
+            *value_comp_p = comp[i]->value;
+            value_comp_p++;
+          }
+        }
+        */
 //##########################################################################################################
 //############################################# MAIN #######################################################
 //##########################################################################################################

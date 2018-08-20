@@ -34,7 +34,8 @@
 #include "cell.h"
 #include "utility.h"
 #include "inputModel.h"
-#include "libsbmlsim/libsbmlsim/libsbmlsim.h"
+
+#include "../libsbmlsim/libsbmlsim.h"
 
 /**
  * @brief Cell population object
@@ -102,6 +103,27 @@ typedef struct CELL_POPULATION
     Model_t* sbml_model;
     int sbml_simulation_method;
     boolean sbml_use_lazy_method;
+ 
+    /* num of variables whose quantity is not a constant */
+    unsigned int sbml_num_of_all_var_species;
+    unsigned int sbml_num_of_all_var_parameters;
+    unsigned int sbml_num_of_all_var_compartments;
+    unsigned int sbml_num_of_all_var_species_reference;
+
+    /* num of SBase objects */
+    unsigned int sbml_num_of_species;
+    unsigned int sbml_num_of_parameters;
+    unsigned int sbml_num_of_compartments;
+    unsigned int sbml_num_of_reactions;
+    unsigned int sbml_num_of_rules;
+    unsigned int sbml_num_of_events;
+    unsigned int sbml_num_of_initialAssignments;
+ 
+    /* num of variables (which is NOT changed by assignment nor algebraic rule) */
+    unsigned int sbml_num_of_var_species;
+    unsigned int sbml_num_of_var_parameters;
+    unsigned int sbml_num_of_var_compartments;
+    unsigned int sbml_num_of_var_species_reference;
     
 } CellPopulation;
 

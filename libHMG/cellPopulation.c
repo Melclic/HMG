@@ -35,6 +35,8 @@
 #include "cellPopulation.h"
 #include "utility.h"
 
+#include "../libsbmlsim/libsbmlsim.h"
+
 /*
 int nestedFindBlockedRep(CellPopulation * cellPopulation, int i)
 {

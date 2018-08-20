@@ -35,6 +35,8 @@
 
 #include "cellPopulation.h"
 
+#include "../libsbmlsim/libsbmlsim.h"
+
 /**
 * @brief Structure containing the model description
 *

@@ -45,7 +45,6 @@
 #include "cell.h"
 #include "utility.h"
 #include "inputModel.h"
-#include "libsbmlsim/libsbmlsim/libsbmlsim.h"
 
 //TODO: make all of these parameters in the dynamic by allocating the calloc and not setting this to be static like this
 //int MAX_CHROM = 32; //64;
@@ -315,7 +314,7 @@ int reorganisePlasmids(Cell * cellArray, int index)
 /**
 * @brief Construct the cell object by setting eveything to 0
 *
-* Set/reset the cell to its default (dead) state. Includes resetting all of its attributes to 0 and looping through the chromArray to delete any replication forks that are open
+* Set/reset the cell to its default (dead) state. Includes resetting all of its attributes to 0 and looping through the chromArray to delete any replication forks that are open. WARNING: Need to free pointers with a second call on construct
 *
 * @param cellArray Array containg all the cells
 * @param index Position of the cell of interest in the cellArray
@@ -364,6 +363,7 @@ int constructCell(Cell * cellArray, int index)
     cellArray[index].segregationTimer = 0.0;
     cellArray[index].segregationTimer2 = 0.0;
     //cellArray[index].divVol = 0.0;
+
     //############## GSL Model parameters ###########
     /*
     for(i=0; i<NUM_MODELSPECIES; i++)
@@ -385,18 +385,167 @@ int constructCell(Cell * cellArray, int index)
     */
 
     //############### libsbmlsim #############  
-
-    if(sbml_results!=NULL)
-    {
-        free_myResult(cellArray[index].sbml_results);
-    }   
     cellArray[index].sbml_err_num = -1;
     cellArray[index].sbml_ato = 0.0;
     cellArray[index].sbml_rtol = 0.0;
     cellArray[index].sbml_facmax = 0.0;
+ 
+    cellArray[index].sbml_error = 0;
+    cellArray[index].sbml_reverse_time = 0.0;
+    cellArray[index].sbml_reactants_numerator = 0.0;
+    cellArray[index].sbml_products_numerator = 0.0;
+    cellArray[index].sbml_min_value = 0.0;
+
+    cellArray[index].sbml_coefficient_matrix = NULL;
+    cellArray[index].sbml_constant_vector = NULL;
+    cellArray[index].sbml_alg_pivot = NULL;
+    cellArray[index].sbml_init_val = NULL;
+    cellArray[index].sbml_ode_check = NULL;
+
+    cellArray[index].sbml_all_var_sp = NULL;
+    cellArray[index].sbml_all_var_param = NULL;
+    cellArray[index].sbml_all_var_comp = NULL;
+    cellArray[index].sbml_all_var_spr = NULL;
+    
+    cellArray[index].sbml_var_sp = NULL; 
+    cellArray[index].sbml_var_param = NULL;
+    cellArray[index].sbml_var_comp = NULL;
+    cellArray[index].sbml_var_spr = NULL;
+
+    cellArray[index].sbml_num_of_species = 0;
+    cellArray[index].sbml_num_of_parameters = 0;
+    cellArray[index].sbml_num_of_compartments = 0;
+    cellArray[index].sbml_num_of_reactions = 0;
+    cellArray[index].sbml_num_of_rules = 0;
+    cellArray[index].sbml_num_of_events = 0;
+    cellArray[index].sbml_num_of_initialAssignments = 0;
+
+    cellArray[index].sbml_num_of_all_var_species = 0;
+    cellArray[index].sbml_num_of_all_var_parameters = 0;
+    cellArray[index].sbml_num_of_all_var_compartments = 0;
+    cellArray[index].sbml_num_of_all_var_species_reference = 0;
+    
+    cellArray[index].sbml_num_of_var_species = 0;
+    cellArray[index].sbml_num_of_var_parameters = 0;
+    cellArray[index].sbml_num_of_var_compartments = 0;
+    cellArray[index].sbml_num_of_var_species_reference = 0;
 
     return 0;
 }
+
+
+/**
+* @brief kill the cell object by setting eveything to 0 and freeing the pointers from the SBML model
+*
+* Set/reset the cell to its default (dead) state. Includes resetting all of its attributes to 0 and looping through the chromArray to delete any replication forks that are open. We reset kill the cell instead of calling constructCell() function because we need to free the pointers in once they are allocated
+* 
+* @param cellArray Array containg all the cells
+* @param index Position of the cell of interest in the cellArray
+* @return Error handling integer
+*/
+int killCell(Cell * cellArray, int index)
+{
+    cellArray[index].isDead = true;
+    cellArray[index].isNewlyRep = false;
+    cellArray[index].isInitiated = false;
+    cellArray[index].isRep = false;
+    cellArray[index].tau = 0.0;
+    cellArray[index].C = 0.0;
+    cellArray[index].C_plasmid = 0.0;
+    cellArray[index].D = 0.0;
+    cellArray[index].Vi = -1.0;
+    cellArray[index].Vi_plasmid = 0.0;
+    cellArray[index].totalPotentialOriC = 0;
+    cellArray[index].totalPotentialOriC_plasmid = 0;
+    cellArray[index].totalRepForks = 0;
+    cellArray[index].a = 0.0;
+    cellArray[index].prev_sum_a = -1.0;
+    cellArray[index].init_a = -1.0;
+    cellArray[index].Va = 0.0;
+    cellArray[index].Ga = 0.0;
+    cellArray[index].Pa = 0.0;
+    cellArray[index].injectionDeviation = 0.0;
+    cellArray[index].prev_sum_a = 0.0;
+    cellArray[index].prev_newbornVol= 0.0;
+    cellArray[index].prev_divisionVol = 0.0;
+
+    //Chromosomes
+    cellArray[index].numChrom = 0;
+    cellArray[index].isFrozen = false;
+    int i;
+    for(i=0; i<MAX_CHROM; i++)
+    {
+        //TODO: change the name to initialiseChromosome
+        clearChromosome(cellArray, index, i);
+    }
+    for(i=0; i<MAX_PLASMID; i++)
+    {
+        //TODO: change the name to initialiseChromosome
+        clearPlasmid(cellArray, index, i);
+    }
+    cellArray[index].segregationTimer = 0.0;
+    cellArray[index].segregationTimer2 = 0.0;
+    //cellArray[index].divVol = 0.0;
+
+    //############### libsbmlsim #############  
+    cellArray[index].sbml_err_num = -1;
+    cellArray[index].sbml_ato = 0.0;
+    cellArray[index].sbml_rtol = 0.0;
+    cellArray[index].sbml_facmax = 0.0;
+ 
+    cellArray[index].sbml_error = 0;
+    cellArray[index].sbml_reverse_time = 0.0;
+    cellArray[index].sbml_reactants_numerator = 0.0;
+    cellArray[index].sbml_products_numerator = 0.0;
+    cellArray[index].sbml_min_value = 0.0;
+
+    if(cellArray[index].sbml_algEq!=NULL)
+    {
+        for(int i=0; i<cellArray[index].sbml_algEq->num_of_algebraic_variables; i++)
+        {
+            free(sbml_coefficient_matrix[i]);
+        }
+        free(sbml_coefficient_matrix);
+        free(sbml_constant_vector);
+        free(sbml_alg_pivot);
+    }
+
+    free(cellArray[index].sbml_init_val);
+    free(cellArray[index].sbml_ode_check);
+
+    free(cellArray[index].sbml_all_var_sp);
+    free(cellArray[index].sbml_all_var_param);
+    free(cellArray[index].sbml_all_var_comp);
+    free(cellArray[index].sbml_all_var_spr);
+    
+    free(cellArray[index].sbml_var_sp); 
+    free(cellArray[index].sbml_var_param);
+    free(cellArray[index].sbml_var_comp);
+    free(cellArray[index].sbml_var_spr);
+
+    cellArray[index].sbml_num_of_species = 0;
+    cellArray[index].sbml_num_of_parameters = 0;
+    cellArray[index].sbml_num_of_compartments = 0;
+    cellArray[index].sbml_num_of_reactions = 0;
+    cellArray[index].sbml_num_of_rules = 0;
+    cellArray[index].sbml_num_of_events = 0;
+    cellArray[index].sbml_num_of_initialAssignments = 0;
+
+    cellArray[index].sbml_num_of_all_var_species = 0;
+    cellArray[index].sbml_num_of_all_var_parameters = 0;
+    cellArray[index].sbml_num_of_all_var_compartments = 0;
+    cellArray[index].sbml_num_of_all_var_species_reference = 0;
+    
+    cellArray[index].sbml_num_of_var_species = 0;
+    cellArray[index].sbml_num_of_var_parameters = 0;
+    cellArray[index].sbml_num_of_var_compartments = 0;
+    cellArray[index].sbml_num_of_var_species_reference = 0;
+
+    return 0;
+}
+
+
+
 
 /**
 * @brief Intialise the cell containing a single chromosome
@@ -507,7 +656,275 @@ int initialiseCell(Cell * cellArray,
         cellArray[index].driver = gsl_odeiv2_driver_alloc_y_new(&cellArray[index].sys, gsl_odeiv2_step_rkf45, 1e-6, 1e-6, 0.0); //TODO: make the last three inputs part of the model
     */
 
-    //######################## libsbml model ################# 
+
+    //############### libsbmlsim #############  
+    cellArray[index].sbml_err_num = -1;
+    cellArray[index].sbml_ato = 0.0;
+    cellArray[index].sbml_rtol = 0.0;
+    cellArray[index].sbml_facmax = 0.0;
+
+
+    //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+    //move this to another section --> when to testing the model
+    check_num(num_of_species, num_of_parameters, num_of_compartments, num_of_reactions, &num_of_all_var_species, &num_of_all_var_parameters, &num_of_all_var_compartments, &num_of_all_var_species_reference, &num_of_var_species, &num_of_var_parameters, &num_of_var_compartments, &num_of_var_species_reference, sp, param, comp, re);
+
+    /* create objects */
+    cellArray[index].sbml_all_var_sp = 
+        (mySpecies**)malloc(sizeof(mySpecies*)*sbml_num_of_all_var_species);
+    cellArray[index].sbml_all_var_param = 
+        (myParameter**)malloc(sizeof(myParameter*)*sbml_num_of_all_var_parameters);
+    cellArray[index].sbml_all_var_comp = 
+        (myCompartment**)malloc(sizeof(myCompartment*)*sbml_num_of_all_var_compartments);
+    cellArray[index].sbml_all_var_spr = 
+        (mySpeciesReference**)malloc(sizeof(mySpeciesReference*)*sbml_num_of_all_var_species_reference);
+    cellArray[index].sbml_var_sp = 
+        (mySpecies**)malloc(sizeof(mySpecies*)*sbml_num_of_var_species);
+    cellArray[index].sbml_var_param = 
+        (myParameter**)malloc(sizeof(myParameter*)*sbml_num_of_var_parameters);
+    cellArray[index].sbml_var_comp = 
+        (myCompartment**)malloc(sizeof(myCompartment*)*sbml_num_of_var_compartments);
+    cellArray[index].sbml_var_spr = 
+        (mySpeciesReference**)malloc(sizeof(mySpeciesReference*)*sbml_num_of_var_species_reference);
+
+    create_calc_object_list(num_of_species,
+                            num_of_parameters,
+                            num_of_compartments, 
+                            num_of_reactions, 
+                            all_var_sp, 
+                            all_var_param, 
+                            all_var_comp, 
+                            all_var_spr, 
+                            var_sp, 
+                            var_param, 
+                            var_comp, 
+                            var_spr, 
+                            sp, 
+                            param, 
+                            comp, 
+                            re);
+
+    if(cellArray[index].sbml_algEq!=NULL)
+    {
+        cellArray[index].sbml_coefficient_matrix = 
+            (double**)malloc(sizeof(double*)*(cellArray[index].sbml_algEq->num_of_algebraic_variables));
+        for(i=0; i<cellArray[index].sbml_algEq->num_of_algebraic_variables; i++)
+        {
+            coefficient_matrix[i] = 
+                (double*)malloc(sizeof(double)*(cellArray[index].sbml_algEq->num_of_algebraic_variables));
+        }
+        cellArray[index].sbml_constant_vector = 
+            (double*)malloc(sizeof(double)*(cellArray[index].sbml_algEq->num_of_algebraic_variables));
+        cellArray[index].sbml_alg_pivot = 
+            (int*)malloc(sizeof(int)*(cellArray[index].sbml_algEq->num_of_algebraic_variables));
+    }
+
+    //cycle = 0; <- NEED TO PUT THIS INTO THE cell.h
+
+    /* initialize delay_val */
+    initialize_delay_val(sp, 
+                        num_of_species, 
+                        param, 
+                        num_of_parameters, 
+                        comp, 
+                        num_of_compartments, 
+                        re, 
+                        num_of_reactions, 
+                        sim_time, 
+                        dt, 
+                        0);
+
+    /* calc temp value by assignment */
+    for(i=0; i<num_of_all_var_species; i++)
+    {
+        if(all_var_sp[i]->depending_rule!=NULL && all_var_sp[i]->depending_rule->is_assignment)
+        {
+             all_var_sp[i]->temp_value = calc(all_var_sp[i]->depending_rule->eq, dt, cycle, &reverse_time, 0);
+        }
+    }
+    for(i=0; i<num_of_all_var_parameters; i++){
+    if(all_var_param[i]->depending_rule != NULL && all_var_param[i]->depending_rule->is_assignment){
+      all_var_param[i]->temp_value = calc(all_var_param[i]->depending_rule->eq, dt, cycle, &reverse_time, 0);
+    }
+    }
+    for(i=0; i<num_of_all_var_compartments; i++){
+    if(all_var_comp[i]->depending_rule != NULL && all_var_comp[i]->depending_rule->is_assignment){
+      all_var_comp[i]->temp_value = calc(all_var_comp[i]->depending_rule->eq, dt, cycle, &reverse_time, 0);
+    }
+    }
+    for(i=0; i<num_of_all_var_species_reference; i++){
+    if(all_var_spr[i]->depending_rule != NULL && all_var_spr[i]->depending_rule->is_assignment){
+      all_var_spr[i]->temp_value = calc(all_var_spr[i]->depending_rule->eq, dt, cycle, &reverse_time, 0);
+    }
+    }
+    /* forwarding value */
+    forwarding_value(all_var_sp, num_of_all_var_species, all_var_param, num_of_all_var_parameters, all_var_comp, num_of_all_var_compartments, all_var_spr, num_of_all_var_species_reference);
+
+    /* initialize delay_val */
+    initialize_delay_val(sp, num_of_species, param, num_of_parameters, comp, num_of_compartments, re, num_of_reactions, sim_time, dt, 0);
+
+    /* calc InitialAssignment */
+    calc_initial_assignment(initAssign, num_of_initialAssignments, dt, cycle, &reverse_time);
+
+    /* initialize delay_val */
+    initialize_delay_val(sp, num_of_species, param, num_of_parameters, comp, num_of_compartments, re, num_of_reactions, sim_time, dt, 0);
+
+    /* rewriting for explicit delay */
+    for(i=0; i<num_of_initialAssignments; i++){
+    for(j=0; j<initAssign[i]->eq->math_length; j++){
+      if(initAssign[i]->eq->number[j] == time){
+        TRACE(("time is replaced with reverse time\n"));
+        initAssign[i]->eq->number[j] = &reverse_time;
+      }else if(initAssign[i]->eq->number[j] != NULL){
+        init_val = (double*)malloc(sizeof(double));
+        *init_val = *initAssign[i]->eq->number[j];
+        mem->memory[mem->num_of_allocated_memory++] = init_val;
+        initAssign[i]->eq->number[j] = init_val;
+      }
+    }
+    }
+    for(i=0; i<timeVarAssign->num_of_time_variant_assignments; i++){
+    for(j=0; j<timeVarAssign->eq[i]->math_length; j++){
+      if(timeVarAssign->eq[i]->number[j] == time){
+        TRACE(("time is replaced with reverse time\n"));
+        timeVarAssign->eq[i]->number[j] = &reverse_time;
+      }else if(timeVarAssign->eq[i]->number[j] != NULL){
+        init_val = (double*)malloc(sizeof(double));
+        *init_val = *timeVarAssign->eq[i]->number[j];
+        mem->memory[mem->num_of_allocated_memory++] = init_val;
+        timeVarAssign->eq[i]->number[j] = init_val;
+      }
+    }
+    }
+
+    /* initialize delay_val */
+    initialize_delay_val(sp, num_of_species, param, num_of_parameters, comp, num_of_compartments, re, num_of_reactions, sim_time, dt, 0);
+
+    /* calc temp value by assignment */
+    for(i=0; i<num_of_all_var_species; i++){
+    if(all_var_sp[i]->depending_rule != NULL && all_var_sp[i]->depending_rule->is_assignment){
+      all_var_sp[i]->temp_value = calc(all_var_sp[i]->depending_rule->eq, dt, cycle, &reverse_time, 0);
+    }
+    }
+    for(i=0; i<num_of_all_var_parameters; i++){
+    if(all_var_param[i]->depending_rule != NULL && all_var_param[i]->depending_rule->is_assignment){
+      all_var_param[i]->temp_value = calc(all_var_param[i]->depending_rule->eq, dt, cycle, &reverse_time, 0);
+    }
+    }
+    for(i=0; i<num_of_all_var_compartments; i++){
+    if(all_var_comp[i]->depending_rule != NULL && all_var_comp[i]->depending_rule->is_assignment){
+      all_var_comp[i]->temp_value = calc(all_var_comp[i]->depending_rule->eq, dt, cycle, &reverse_time, 0);
+    }
+    }
+    for(i=0; i<num_of_all_var_species_reference; i++){
+    if(all_var_spr[i]->depending_rule != NULL && all_var_spr[i]->depending_rule->is_assignment){
+      all_var_spr[i]->temp_value = calc(all_var_spr[i]->depending_rule->eq, dt, cycle, &reverse_time, 0);
+    }
+    }
+    /* forwarding value */
+    forwarding_value(all_var_sp, num_of_all_var_species, all_var_param, num_of_all_var_parameters, all_var_comp, num_of_all_var_compartments, all_var_spr, num_of_all_var_species_reference);
+
+    /* initialize delay_val */
+    initialize_delay_val(sp, num_of_species, param, num_of_parameters, comp, num_of_compartments, re, num_of_reactions, sim_time, dt, 0);
+
+    /* calc temp value algebraic by algebraic */
+    if(algEq != NULL){
+    if(algEq->num_of_algebraic_variables > 1){
+      /* initialize pivot */
+      for(i=0; i<algEq->num_of_algebraic_variables; i++){
+        alg_pivot[i] = i;
+      }
+      for(i=0; i<algEq->num_of_algebraic_variables; i++){
+        for(j=0; j<algEq->num_of_algebraic_variables; j++){
+          coefficient_matrix[i][j] = calc(algEq->coefficient_matrix[i][j], dt, cycle, &reverse_time, 0);
+          /* TRACE(("coefficient matrix[%d][%d] = %lf\n", i, j, coefficient_matrix[i][j])); */
+        }
+      }
+      for(i=0; i<algEq->num_of_algebraic_variables; i++){
+        constant_vector[i] = -calc(algEq->constant_vector[i], dt, cycle, &reverse_time, 0);
+        /* TRACE(("constant vector[%d] = %lf\n", i, constant_vector[i])); */
+      }
+      /* LU decompostion */
+      error = lu_decomposition(coefficient_matrix, alg_pivot, algEq->num_of_algebraic_variables);
+      if(error == 0){/* failure in LU decomposition */
+        return NULL;
+      }
+      /* forward substitution & backward substitution */
+      lu_solve(coefficient_matrix, alg_pivot, algEq->num_of_algebraic_variables, constant_vector);
+      /*       for(i=0; i<algEq->num_of_algebraic_variables; i++){ */
+      /* 	TRACE(("ans[%d] = %lf\n", i, constant_vector[i])); */
+      /*       } */
+      for(i=0; i<algEq->num_of_alg_target_sp; i++){
+        algEq->alg_target_species[i]->target_species->temp_value = constant_vector[algEq->alg_target_species[i]->order];
+      }
+      for(i=0; i<algEq->num_of_alg_target_param; i++){
+        algEq->alg_target_parameter[i]->target_parameter->temp_value = constant_vector[algEq->alg_target_parameter[i]->order];
+      }    
+      for(i=0; i<algEq->num_of_alg_target_comp; i++){
+        /* new code */
+        for(j=0; j<algEq->alg_target_compartment[i]->target_compartment->num_of_including_species; j++){
+          if(algEq->alg_target_compartment[i]->target_compartment->including_species[j]->is_concentration){
+            algEq->alg_target_compartment[i]->target_compartment->including_species[j]->temp_value = algEq->alg_target_compartment[i]->target_compartment->including_species[j]->temp_value*algEq->alg_target_compartment[i]->target_compartment->temp_value/constant_vector[algEq->alg_target_compartment[i]->order];
+          }
+        }
+       /* new code end */
+        algEq->alg_target_compartment[i]->target_compartment->temp_value = constant_vector[algEq->alg_target_compartment[i]->order];
+      }    
+    }else{
+      if(algEq->target_species != NULL){
+        algEq->target_species->temp_value = -calc(algEq->constant, dt, cycle, &reverse_time, 0)/calc(algEq->coefficient, dt, cycle, &reverse_time, 0);
+      }
+      if(algEq->target_parameter != NULL){
+        algEq->target_parameter->temp_value = -calc(algEq->constant, dt, cycle, &reverse_time, 0)/calc(algEq->coefficient, dt, cycle, &reverse_time, 0);
+      }
+      if(algEq->target_compartment != NULL){
+        /* new code */
+        for(i=0; i<algEq->target_compartment->num_of_including_species; i++){
+          if(algEq->target_compartment->including_species[i]->is_concentration){
+            algEq->target_compartment->including_species[i]->temp_value = algEq->target_compartment->including_species[i]->temp_value*algEq->target_compartment->temp_value/(-calc(algEq->constant, dt, cycle, &reverse_time, 0)/calc(algEq->coefficient, dt, cycle, &reverse_time, 0));
+          }
+        }
+       /* new code end */
+        algEq->target_compartment->temp_value = -calc(algEq->constant, dt, cycle, &reverse_time, 0)/calc(algEq->coefficient, dt, cycle, &reverse_time, 0);
+      }
+    }
+    /* forwarding value */
+    forwarding_value(all_var_sp, num_of_all_var_species, all_var_param, num_of_all_var_parameters, all_var_comp, num_of_all_var_compartments, all_var_spr, num_of_all_var_species_reference);
+    }
+
+    /* initialize delay_val */
+    initialize_delay_val(sp, num_of_species, param, num_of_parameters, comp, num_of_compartments, re, num_of_reactions, sim_time, dt, 1);
+
+    //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     if(cellArray[index].d==NULL)
     {
         //return create_myResult_with_errorCode(Unknown);
@@ -551,6 +968,337 @@ int initialiseCell(Cell * cellArray,
         }
     }
     cellArray[index].m = SBMLDocument_getModel(d);
+
+    //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    cellArray[index].sbml_products_numerator = 
+        calc(cellArray[index].sbml_results[i]->products_equili_numerator, 
+                dt, 
+                cellArray[index].sbml_cycle, 
+                &cellArray[index].sbml_reverse_time, 
+                0);
+    cellArray[index].sbml_reactants_numerator = 
+        calc(cellArray[index].sbml_results[i]->reactants_equili_numerator, 
+                dt, 
+                cellArray[index].sbml_cycle, 
+                &cellArray[index].sbml_reverse_time, 
+                0);
+
+    cellArray[index].sbml_init_val = NULL;
+    cellArray[index].sbml_ode_check = NULL;
+
+    if(cellArray[index].sbml_algEq!=NULL)
+    {
+        cellArray[index].sbml_coefficient_matrix = 
+            (double**)malloc(sizeof(double*)*(cellArray[index].sbml_algEq->num_of_algebraic_variables));
+        for(int i=0; i<cellArray[index].sbml_algEq->num_of_algebraic_variables; i++)
+        {
+            cellArray[index].sbml_coefficient_matrix[i] = 
+                (double*)malloc(sizeof(double)*(cellArray[index].sbml_algEq->num_of_algebraic_variables));
+        }
+        cellArray[index].sbml_constant_vector = 
+            (double*)malloc(sizeof(double)*(cellArray[index].sbml_algEq->num_of_algebraic_variables));
+        cellArray[index].sbml_alg_pivot = 
+            (int*)malloc(sizeof(int)*(cellArray[index].sbml_algEq->num_of_algebraic_variables));
+    }
+
+    cellArray[index].sbml_all_var_sp = NULL;
+    cellArray[index].sbml_all_var_param = NULL;
+    cellArray[index].sbml_all_var_comp = NULL;
+    cellArray[index].sbml_all_var_spr = NULL;
+    
+    cellArray[index].sbml_var_sp = NULL; 
+    cellArray[index].sbml_var_param = NULL;
+    cellArray[index].sbml_var_comp = NULL;
+    cellArray[index].sbml_var_spr = NULL;
+
+    cellArray[index].sbml_num_of_species = 0;
+    cellArray[index].sbml_num_of_parameters = 0;
+    cellArray[index].sbml_num_of_compartments = 0;
+    cellArray[index].sbml_num_of_reactions = 0;
+    cellArray[index].sbml_num_of_rules = 0;
+    cellArray[index].sbml_num_of_events = 0;
+    cellArray[index].sbml_num_of_initialAssignments = 0;
+
+    cellArray[index].sbml_num_of_all_var_species = 0;
+    cellArray[index].sbml_num_of_all_var_parameters = 0;
+    cellArray[index].sbml_num_of_all_var_compartments = 0;
+    cellArray[index].sbml_num_of_all_var_species_reference = 0;
+    
+    cellArray[index].sbml_num_of_var_species = 0;
+    cellArray[index].sbml_num_of_var_parameters = 0;
+    cellArray[index].sbml_num_of_var_compartments = 0;
+    cellArray[index].sbml_num_of_var_species_reference = 0;
+
+
+
+
+
+
+
+
+
+    //######################## libsbml model ################# 
+
+    cellArray[index].value_time_p = result->values_time;
+    double *value_sp_p = result->values_sp;
+    double *value_param_p = result->values_param;
+    double *value_comp_p = result->values_comp;
+    double **coefficient_matrix = NULL;
+    double *constant_vector = NULL;
+    int *alg_pivot = NULL;
+    double reactants_numerator, products_numerator;
+    double min_value;
+    double *init_val;
+
+    /* num of SBase objects */
+    unsigned int num_of_species = Model_getNumSpecies(m);
+    unsigned int num_of_parameters = Model_getNumParameters(m);
+    unsigned int num_of_compartments = Model_getNumCompartments(m);
+    unsigned int num_of_reactions = Model_getNumReactions(m);
+    unsigned int num_of_rules = Model_getNumRules(m);
+    unsigned int num_of_events = Model_getNumEvents(m);
+    unsigned int num_of_initialAssignments = Model_getNumInitialAssignments(m);
+    /* num of variables whose quantity is not a constant */
+    unsigned int num_of_all_var_species = 0;
+    unsigned int num_of_all_var_parameters = 0;
+    unsigned int num_of_all_var_compartments = 0;
+    unsigned int num_of_all_var_species_reference = 0;
+    /* num of variables (which is NOT changed by assignment nor algebraic rule) */
+    unsigned int num_of_var_species = 0;
+    unsigned int num_of_var_parameters = 0;
+    unsigned int num_of_var_compartments = 0;
+    unsigned int num_of_var_species_reference = 0;
+    /* All variables (whose quantity is not a constant) */
+    mySpecies **all_var_sp;           /* all variable species */
+    myParameter **all_var_param;      /* all variable parameters */
+    myCompartment **all_var_comp;     /* all variable compartments */
+    mySpeciesReference **all_var_spr; /* all varialbe SpeciesReferences */
+    /* variables (which is NOT changed by assignment nor algebraic rule) */
+    mySpecies **var_sp; 
+    myParameter **var_param;
+    myCompartment **var_comp;
+    mySpeciesReference **var_spr;
+    check_num(num_of_species, 
+                num_of_parameters, 
+                num_of_compartments, 
+                num_of_reactions, 
+                &num_of_all_var_species, 
+                &num_of_all_var_parameters, 
+                &num_of_all_var_compartments, 
+                &num_of_all_var_species_reference, 
+                &num_of_var_species, 
+                &num_of_var_parameters, 
+                &num_of_var_compartments, 
+                &num_of_var_species_reference, 
+                sp, 
+                param, 
+                comp, 
+                re);
+
+  /* create objects */
+  all_var_sp = (mySpecies **)malloc(sizeof(mySpecies *) * num_of_all_var_species);
+  all_var_param = (myParameter **)malloc(sizeof(myParameter *) * num_of_all_var_parameters);
+  all_var_comp = (myCompartment **)malloc(sizeof(myCompartment *) * num_of_all_var_compartments);
+  all_var_spr = (mySpeciesReference **)malloc(sizeof(mySpeciesReference *) * num_of_all_var_species_reference);
+  var_sp = (mySpecies **)malloc(sizeof(mySpecies *) * num_of_var_species);
+  var_param = (myParameter **)malloc(sizeof(myParameter *) * num_of_var_parameters);
+  var_comp = (myCompartment **)malloc(sizeof(myCompartment *) * num_of_var_compartments);
+  var_spr = (mySpeciesReference **)malloc(sizeof(mySpeciesReference *) * num_of_var_species_reference);
+
+  create_calc_object_list(num_of_species, num_of_parameters, num_of_compartments, num_of_reactions, all_var_sp, all_var_param, all_var_comp, all_var_spr, var_sp, var_param, var_comp, var_spr, sp, param, comp, re);
+
+  if(algEq != NULL){
+    coefficient_matrix = (double**)malloc(sizeof(double*)*(algEq->num_of_algebraic_variables));
+    for(i=0; i<algEq->num_of_algebraic_variables; i++){
+      coefficient_matrix[i] = (double*)malloc(sizeof(double)*(algEq->num_of_algebraic_variables));
+    }
+    constant_vector = (double*)malloc(sizeof(double)*(algEq->num_of_algebraic_variables));
+    alg_pivot = (int*)malloc(sizeof(int)*(algEq->num_of_algebraic_variables));
+  }
+
+  PRG_TRACE(("Simulation for [%s] Starts!\n", Model_getId(m)));
+  cycle = 0;
+
+  /* initialize delay_val */
+  initialize_delay_val(sp, num_of_species, param, num_of_parameters, comp, num_of_compartments, re, num_of_reactions, sim_time, dt, 0);
+
+  /* calc temp value by assignment */
+  for(i=0; i<num_of_all_var_species; i++){
+    if(all_var_sp[i]->depending_rule != NULL && all_var_sp[i]->depending_rule->is_assignment){
+      all_var_sp[i]->temp_value = calc(all_var_sp[i]->depending_rule->eq, dt, cycle, &reverse_time, 0);
+    }
+  }
+  for(i=0; i<num_of_all_var_parameters; i++){
+    if(all_var_param[i]->depending_rule != NULL && all_var_param[i]->depending_rule->is_assignment){
+      all_var_param[i]->temp_value = calc(all_var_param[i]->depending_rule->eq, dt, cycle, &reverse_time, 0);
+    }
+  }
+  for(i=0; i<num_of_all_var_compartments; i++){
+    if(all_var_comp[i]->depending_rule != NULL && all_var_comp[i]->depending_rule->is_assignment){
+      all_var_comp[i]->temp_value = calc(all_var_comp[i]->depending_rule->eq, dt, cycle, &reverse_time, 0);
+    }
+  }
+  for(i=0; i<num_of_all_var_species_reference; i++){
+    if(all_var_spr[i]->depending_rule != NULL && all_var_spr[i]->depending_rule->is_assignment){
+      all_var_spr[i]->temp_value = calc(all_var_spr[i]->depending_rule->eq, dt, cycle, &reverse_time, 0);
+    }
+  }
+  /* forwarding value */
+  forwarding_value(all_var_sp, num_of_all_var_species, all_var_param, num_of_all_var_parameters, all_var_comp, num_of_all_var_compartments, all_var_spr, num_of_all_var_species_reference);
+
+  /* initialize delay_val */
+  initialize_delay_val(sp, num_of_species, param, num_of_parameters, comp, num_of_compartments, re, num_of_reactions, sim_time, dt, 0);
+
+  /* calc InitialAssignment */
+  calc_initial_assignment(initAssign, num_of_initialAssignments, dt, cycle, &reverse_time);
+
+  /* initialize delay_val */
+  initialize_delay_val(sp, num_of_species, param, num_of_parameters, comp, num_of_compartments, re, num_of_reactions, sim_time, dt, 0);
+
+  /* rewriting for explicit delay */
+  for(i=0; i<num_of_initialAssignments; i++){
+    for(j=0; j<initAssign[i]->eq->math_length; j++){
+      if(initAssign[i]->eq->number[j] == time){
+        TRACE(("time is replaced with reverse time\n"));
+        initAssign[i]->eq->number[j] = &reverse_time;
+      }else if(initAssign[i]->eq->number[j] != NULL){
+        init_val = (double*)malloc(sizeof(double));
+        *init_val = *initAssign[i]->eq->number[j];
+        mem->memory[mem->num_of_allocated_memory++] = init_val;
+        initAssign[i]->eq->number[j] = init_val;
+      }
+    }
+  }
+  for(i=0; i<timeVarAssign->num_of_time_variant_assignments; i++){
+    for(j=0; j<timeVarAssign->eq[i]->math_length; j++){
+      if(timeVarAssign->eq[i]->number[j] == time){
+        TRACE(("time is replaced with reverse time\n"));
+        timeVarAssign->eq[i]->number[j] = &reverse_time;
+      }else if(timeVarAssign->eq[i]->number[j] != NULL){
+        init_val = (double*)malloc(sizeof(double));
+        *init_val = *timeVarAssign->eq[i]->number[j];
+        mem->memory[mem->num_of_allocated_memory++] = init_val;
+        timeVarAssign->eq[i]->number[j] = init_val;
+      }
+    }
+  }
+
+  /* initialize delay_val */
+  initialize_delay_val(sp, num_of_species, param, num_of_parameters, comp, num_of_compartments, re, num_of_reactions, sim_time, dt, 0);
+
+  /* calc temp value by assignment */
+  for(i=0; i<num_of_all_var_species; i++){
+    if(all_var_sp[i]->depending_rule != NULL && all_var_sp[i]->depending_rule->is_assignment){
+      all_var_sp[i]->temp_value = calc(all_var_sp[i]->depending_rule->eq, dt, cycle, &reverse_time, 0);
+    }
+  }
+  for(i=0; i<num_of_all_var_parameters; i++){
+    if(all_var_param[i]->depending_rule != NULL && all_var_param[i]->depending_rule->is_assignment){
+      all_var_param[i]->temp_value = calc(all_var_param[i]->depending_rule->eq, dt, cycle, &reverse_time, 0);
+    }
+  }
+  for(i=0; i<num_of_all_var_compartments; i++){
+    if(all_var_comp[i]->depending_rule != NULL && all_var_comp[i]->depending_rule->is_assignment){
+      all_var_comp[i]->temp_value = calc(all_var_comp[i]->depending_rule->eq, dt, cycle, &reverse_time, 0);
+    }
+  }
+  for(i=0; i<num_of_all_var_species_reference; i++){
+    if(all_var_spr[i]->depending_rule != NULL && all_var_spr[i]->depending_rule->is_assignment){
+      all_var_spr[i]->temp_value = calc(all_var_spr[i]->depending_rule->eq, dt, cycle, &reverse_time, 0);
+    }
+  }
+  /* forwarding value */
+  forwarding_value(all_var_sp, num_of_all_var_species, all_var_param, num_of_all_var_parameters, all_var_comp, num_of_all_var_compartments, all_var_spr, num_of_all_var_species_reference);
+
+  /* initialize delay_val */
+  initialize_delay_val(sp, num_of_species, param, num_of_parameters, comp, num_of_compartments, re, num_of_reactions, sim_time, dt, 0);
+
+  /* calc temp value algebraic by algebraic */
+  if(algEq != NULL){
+    if(algEq->num_of_algebraic_variables > 1){
+      /* initialize pivot */
+      for(i=0; i<algEq->num_of_algebraic_variables; i++){
+        alg_pivot[i] = i;
+      }
+      for(i=0; i<algEq->num_of_algebraic_variables; i++){
+        for(j=0; j<algEq->num_of_algebraic_variables; j++){
+          coefficient_matrix[i][j] = calc(algEq->coefficient_matrix[i][j], dt, cycle, &reverse_time, 0);
+          /* TRACE(("coefficient matrix[%d][%d] = %lf\n", i, j, coefficient_matrix[i][j])); */
+        }
+      }
+      for(i=0; i<algEq->num_of_algebraic_variables; i++){
+        constant_vector[i] = -calc(algEq->constant_vector[i], dt, cycle, &reverse_time, 0);
+        /* TRACE(("constant vector[%d] = %lf\n", i, constant_vector[i])); */
+      }
+      /* LU decompostion */
+      error = lu_decomposition(coefficient_matrix, alg_pivot, algEq->num_of_algebraic_variables);
+      if(error == 0){/* failure in LU decomposition */
+        return NULL;
+      }
+      /* forward substitution & backward substitution */
+      lu_solve(coefficient_matrix, alg_pivot, algEq->num_of_algebraic_variables, constant_vector);
+      /*       for(i=0; i<algEq->num_of_algebraic_variables; i++){ */
+      /*    TRACE(("ans[%d] = %lf\n", i, constant_vector[i])); */
+      /*       } */
+      for(i=0; i<algEq->num_of_alg_target_sp; i++){
+        algEq->alg_target_species[i]->target_species->temp_value = constant_vector[algEq->alg_target_species[i]->order];
+      }
+      for(i=0; i<algEq->num_of_alg_target_param; i++){
+        algEq->alg_target_parameter[i]->target_parameter->temp_value = constant_vector[algEq->alg_target_parameter[i]->order];
+      }    
+      for(i=0; i<algEq->num_of_alg_target_comp; i++){
+        /* new code */
+        for(j=0; j<algEq->alg_target_compartment[i]->target_compartment->num_of_including_species; j++){
+          if(algEq->alg_target_compartment[i]->target_compartment->including_species[j]->is_concentration){
+            algEq->alg_target_compartment[i]->target_compartment->including_species[j]->temp_value = algEq->alg_target_compartment[i]->target_compartment->including_species[j]->temp_value*algEq->alg_target_compartment[i]->target_compartment->temp_value/constant_vector[algEq->alg_target_compartment[i]->order];
+          }
+        }
+       /* new code end */
+        algEq->alg_target_compartment[i]->target_compartment->temp_value = constant_vector[algEq->alg_target_compartment[i]->order];
+      }    
+    }else{
+      if(algEq->target_species != NULL){
+        algEq->target_species->temp_value = -calc(algEq->constant, dt, cycle, &reverse_time, 0)/calc(algEq->coefficient, dt, cycle, &reverse_time, 0);
+      }
+      if(algEq->target_parameter != NULL){
+        algEq->target_parameter->temp_value = -calc(algEq->constant, dt, cycle, &reverse_time, 0)/calc(algEq->coefficient, dt, cycle, &reverse_time, 0);
+      }
+      if(algEq->target_compartment != NULL){
+        /* new code */
+        for(i=0; i<algEq->target_compartment->num_of_including_species; i++){
+          if(algEq->target_compartment->including_species[i]->is_concentration){
+            algEq->target_compartment->including_species[i]->temp_value = algEq->target_compartment->including_species[i]->temp_value*algEq->target_compartment->temp_value/(-calc(algEq->constant, dt, cycle, &reverse_time, 0)/calc(algEq->coefficient, dt, cycle, &reverse_time, 0));
+          }
+        }
+       /* new code end */
+        algEq->target_compartment->temp_value = -calc(algEq->constant, dt, cycle, &reverse_time, 0)/calc(algEq->coefficient, dt, cycle, &reverse_time, 0);
+      }
+    }
+    /* forwarding value */
+    forwarding_value(all_var_sp, num_of_all_var_species, all_var_param, num_of_all_var_parameters, all_var_comp, num_of_all_var_compartments, all_var_spr, num_of_all_var_species_reference);
+  }
+
+  /* initialize delay_val */
+  initialize_delay_val(sp, num_of_species, param, num_of_parameters, comp, num_of_compartments, re, num_of_reactions, sim_time, dt, 1);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     return 0;
 }
 
@@ -1521,6 +2269,461 @@ int growPlasmids(Cell * cellArray, int index, float dt)
     }
     return 0;
 }
+
+
+// ######################## libsbml #################################
+
+//simulate explicit
+myResult* simulate_explicit(Model_t *m, 
+                            myResult* result, 
+                            mySpecies *sp[], 
+                            myParameter *param[], 
+                            myCompartment *comp[], 
+                            myReaction *re[], 
+                            myRule *rule[], 
+                            myEvent *event[], 
+                            myInitialAssignment *initAssign[], 
+                            myAlgebraicEquations *algEq, 
+                            timeVariantAssignments *timeVarAssign, 
+                            //double sim_time, 
+                            double dt, 
+                            //int print_interval, 
+                            double *time, 
+                            int order, 
+                            //int print_amount, 
+                            allocated_memory *mem)
+{
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    //######################## START THE FUNCTION HERE ####################################
+    // modified explicit function from libsbmlsim that takes a single time step of size dt
+    //problem is that the parameter cycle is used and should not for a single step
+    //      --> need to test to see if you always use the cycle=1 at every iteration that you get the same
+    //          Alternatively just add a counter upon the creation of a cell for its life cycle
+
+    //for(cycle=0; cycle<=end_cycle; cycle++)
+    //{
+    /* calculate unreversible fast reaction */
+    for(i=0; i<num_of_reactions; i++)
+    {
+        if(re[i]->is_fast && !re[i]->is_reversible)
+        {
+            if(calc(re[i]->eq, dt, cycle, &reverse_time, 0) > 0)
+            {
+                min_value = DBL_MAX;
+                for(j=0; j<re[i]->num_of_reactants; j++)
+                {
+                    if(min_value>re[i]->reactants[j]->mySp->value
+                            /calc(re[i]->reactants[j]->eq, dt, cycle, &reverse_time, 0))
+                    {
+                        min_value = re[i]->reactants[j]->mySp->value
+                            /calc(re[i]->reactants[j]->eq, dt, cycle, &reverse_time, 0);        
+                    }
+                }
+                for(j=0; j<re[i]->num_of_products; j++)
+                {
+                    if(!Species_getBoundaryCondition(re[i]->products[j]->mySp->origin))
+                    {
+                        re[i]->products[j]->mySp->value += 
+                            calc(re[i]->products[j]->eq, dt, cycle, &reverse_time, 0)*min_value;
+                        re[i]->products[j]->mySp->temp_value = re[i]->products[j]->mySp->value;
+                    }
+                }
+                for(j=0; j<re[i]->num_of_reactants; j++)
+                {
+                    if(!Species_getBoundaryCondition(re[i]->reactants[j]->mySp->origin))
+                    {
+                        re[i]->reactants[j]->mySp->value -= 
+                            calc(re[i]->reactants[j]->eq, dt, cycle, &reverse_time, 0)*min_value;
+                        re[i]->reactants[j]->mySp->temp_value = re[i]->reactants[j]->mySp->value;
+                    }
+                }
+            }
+        }
+    }
+
+    /* calculate reversible fast reaction */
+    for(i=0; i<num_of_reactions; i++)
+    {
+        if(re[i]->is_fast && re[i]->is_reversible)
+        {
+            if(!(Species_getBoundaryCondition(re[i]->products[0]->mySp->origin)
+                        && Species_getBoundaryCondition(re[i]->reactants[0]->mySp->origin)))
+            {
+                products_numerator = calc(re[i]->products_equili_numerator, dt, cycle, &reverse_time, 0);
+                reactants_numerator = calc(re[i]->reactants_equili_numerator, dt, cycle, &reverse_time, 0);
+                if(products_numerator > 0 || reactants_numerator > 0)
+                {
+                    if(Species_getBoundaryCondition(re[i]->products[0]->mySp->origin))
+                    {
+                        re[i]->reactants[0]->mySp->value = (reactants_numerator
+                                /products_numerator)*re[i]->products[0]->mySp->value;
+                        re[i]->reactants[0]->mySp->temp_value = re[i]->reactants[0]->mySp->value;
+                    }
+                    else if(Species_getBoundaryCondition(re[i]->reactants[0]->mySp->origin))
+                    {
+                        re[i]->products[0]->mySp->value = (products_numerator
+                                /reactants_numerator)*re[i]->reactants[0]->mySp->value;
+                        re[i]->products[0]->mySp->temp_value = re[i]->products[0]->mySp->value;
+                    }
+                    else
+                    {
+                        re[i]->products[0]->mySp->value = (products_numerator
+                                    /(products_numerator+reactants_numerator))
+                                *(re[i]->products[0]->mySp->temp_value
+                                    +re[i]->reactants[0]->mySp->temp_value);
+                        re[i]->reactants[0]->mySp->value = (reactants_numerator
+                                    /(products_numerator+reactants_numerator))
+                                *(re[i]->products[0]->mySp->temp_value
+                                    +re[i]->reactants[0]->mySp->temp_value);
+                        re[i]->products[0]->mySp->temp_value = re[i]->products[0]->mySp->value;
+                        re[i]->reactants[0]->mySp->temp_value = re[i]->reactants[0]->mySp->value;
+                    }
+                }
+            }
+        }
+    }
+
+    /* event */
+    calc_event(event, num_of_events, dt, *time, cycle, &reverse_time);
+
+    /* substitute delay val */
+    substitute_delay_val(sp, 
+                        num_of_species, 
+                        param, 
+                        num_of_parameters, 
+                        comp, 
+                        num_of_compartments, 
+                        re, 
+                        num_of_reactions, 
+                        cycle);
+
+    /* time increase */
+    *time = (cycle+1)*dt;
+
+    if(order == 4)
+    {
+        /* runge kutta */
+        calc_k(all_var_sp, 
+                num_of_all_var_species, 
+                all_var_param, 
+                num_of_all_var_parameters, 
+                all_var_comp, 
+                num_of_all_var_compartments, 
+                all_var_spr, 
+                num_of_all_var_species_reference, 
+                re, 
+                num_of_reactions, 
+                rule, 
+                num_of_rules, 
+                cycle, 
+                dt, 
+                &reverse_time, 
+                1, 
+                1);
+        calc_temp_value(all_var_sp, 
+                num_of_all_var_species, 
+                all_var_param, 
+                num_of_all_var_parameters, 
+                all_var_comp, 
+                num_of_all_var_compartments, 
+                all_var_spr, 
+                num_of_all_var_species_reference, 
+                dt, 
+                1);
+    } 
+    else
+    {
+        /* Adams-Bashforth */
+        /* calc k */
+        calc_k(var_sp, 
+                num_of_var_species, 
+                var_param, 
+                num_of_var_parameters, 
+                var_comp, 
+                num_of_var_compartments, 
+                var_spr, 
+                num_of_var_species_reference, 
+                re, 
+                num_of_reactions, 
+                rule, 
+                num_of_rules, 
+                cycle, 
+                dt, 
+                &reverse_time, 
+                0, 
+                1);      
+        /* calc temp value by Adams Bashforth */
+        for(i=0; i<num_of_var_species; i++)
+        {
+            var_sp[i]->temp_value = var_sp[i]->value
+                +calc_explicit_formula(order, 
+                                        var_sp[i]->k[0], 
+                                        var_sp[i]->prev_k[0], 
+                                        var_sp[i]->prev_k[1], 
+                                        var_sp[i]->prev_k[2])*dt;
+        }
+        for(i=0; i<num_of_var_parameters; i++)
+        {
+        var_param[i]->temp_value = var_param[i]->value
+            +calc_explicit_formula(order,
+                                    var_param[i]->k[0],
+                                    var_param[i]->prev_k[0],
+                                    var_param[i]->prev_k[1],
+                                    var_param[i]->prev_k[2])*dt;
+        }
+        for(i=0; i<num_of_var_compartments; i++)
+        {
+            var_comp[i]->temp_value = var_comp[i]->value
+                +calc_explicit_formula(order,
+                                    var_comp[i]->k[0], 
+                                    var_comp[i]->prev_k[0], 
+                                    var_comp[i]->prev_k[1], 
+                                    var_comp[i]->prev_k[2])*dt;
+        }
+        for(i=0; i<num_of_var_species_reference; i++)
+        {
+            var_spr[i]->temp_value = var_spr[i]->value
+              +calc_explicit_formula(order, 
+                                    var_spr[i]->k[0], 
+                                    var_spr[i]->prev_k[0], 
+                                    var_spr[i]->prev_k[1], 
+                                    var_spr[i]->prev_k[2])*dt;
+        }      
+        /* calc temp value by assignment */
+        for(i=0; i<num_of_all_var_species; i++)
+        {
+            if(all_var_sp[i]->depending_rule != NULL && all_var_sp[i]->depending_rule->is_assignment)
+            {
+                all_var_sp[i]->temp_value = calc(all_var_sp[i]->depending_rule->eq, dt, cycle, &reverse_time, 0);
+            }
+        }
+        for(i=0; i<num_of_all_var_parameters; i++)
+        {
+            if(all_var_param[i]->depending_rule != NULL && all_var_param[i]->depending_rule->is_assignment)
+            {
+                all_var_param[i]->temp_value = calc(all_var_param[i]->depending_rule->eq, 
+                                                    dt, 
+                                                    cycle, 
+                                                    &reverse_time, 
+                                                    0);
+            }
+        }
+        for(i=0; i<num_of_all_var_compartments; i++)
+        {
+            if(all_var_comp[i]->depending_rule != NULL && all_var_comp[i]->depending_rule->is_assignment)
+            {
+                all_var_comp[i]->temp_value = calc(all_var_comp[i]->depending_rule->eq, 
+                                                    dt, 
+                                                    cycle, 
+                                                    &reverse_time, 
+                                                    0);
+            }
+        }
+        for(i=0; i<num_of_all_var_species_reference; i++)
+        {
+            if(all_var_spr[i]->depending_rule != NULL && all_var_spr[i]->depending_rule->is_assignment)
+            {
+                all_var_spr[i]->temp_value = calc(all_var_spr[i]->depending_rule->eq, 
+                                                    dt, 
+                                                    cycle, 
+                                                    &reverse_time, 
+                                                    0);
+            }
+        }
+    }   
+
+    /* calc temp value algebraic by algebraic */
+    if(algEq!=NULL)
+    {
+        if(algEq->num_of_algebraic_variables > 1)
+        {
+            /* initialize pivot */
+            for(i=0; i<algEq->num_of_algebraic_variables; i++)
+            {
+                alg_pivot[i] = i;
+            }
+            for(i=0; i<algEq->num_of_algebraic_variables; i++)
+            {
+                for(j=0; j<algEq->num_of_algebraic_variables; j++)
+                {
+                    coefficient_matrix[i][j] = calc(algEq->coefficient_matrix[i][j], dt, cycle, &reverse_time, 0);
+                }
+            }
+            for(i=0; i<algEq->num_of_algebraic_variables; i++)
+            {
+                constant_vector[i] = -calc(algEq->constant_vector[i], dt, cycle, &reverse_time, 0);
+            }
+            /* LU decompostion */
+            error = lu_decomposition(coefficient_matrix, alg_pivot, algEq->num_of_algebraic_variables);
+            if(error == 0)
+            {
+                /* failure in LU decomposition */
+                return NULL;
+            }
+            /* forward substitution & backward substitution */
+            lu_solve(coefficient_matrix, alg_pivot, algEq->num_of_algebraic_variables, constant_vector);
+            for(i=0; i<algEq->num_of_alg_target_sp; i++)
+            {
+                algEq->alg_target_species[i]->target_species->temp_value = 
+                    constant_vector[algEq->alg_target_species[i]->order];
+            }    
+            for(i=0; i<algEq->num_of_alg_target_param; i++)
+            {
+                algEq->alg_target_parameter[i]->target_parameter->temp_value = 
+                    constant_vector[algEq->alg_target_parameter[i]->order];
+            }    
+            for(i=0; i<algEq->num_of_alg_target_comp; i++)
+            {
+                for(j=0; j<algEq->alg_target_compartment[i]->target_compartment->num_of_including_species; j++)
+                {
+                    if(algEq->alg_target_compartment[i]->target_compartment->including_species[j]->is_concentration)
+                    {
+                        algEq->alg_target_compartment[i]->target_compartment->including_species[j]->temp_value = 
+                            algEq->alg_target_compartment[i]->target_compartment->including_species[j]->temp_value
+                                *algEq->alg_target_compartment[i]->target_compartment->temp_value
+                                /constant_vector[algEq->alg_target_compartment[i]->order];
+                    }
+                }
+                algEq->alg_target_compartment[i]->target_compartment->temp_value 
+                    = constant_vector[algEq->alg_target_compartment[i]->order];
+            }    
+        }
+        else
+        {
+            if(algEq->target_species != NULL)
+            {
+                algEq->target_species->temp_value 
+                    = -calc(algEq->constant, dt, cycle, &reverse_time, 0)
+                        /calc(algEq->coefficient, dt, cycle, &reverse_time, 0);
+            }
+            if(algEq->target_parameter != NULL)
+            {
+                algEq->target_parameter->temp_value 
+                    = -calc(algEq->constant, dt, cycle, &reverse_time, 0)
+                        /calc(algEq->coefficient, dt, cycle, &reverse_time, 0);
+            }
+            if(algEq->target_compartment != NULL)
+            {
+                for(i=0; i<algEq->target_compartment->num_of_including_species; i++)
+                {
+                    if(algEq->target_compartment->including_species[i]->is_concentration)
+                    {
+                        algEq->target_compartment->including_species[i]->temp_value 
+                            = algEq->target_compartment->including_species[i]->temp_value
+                                *algEq->target_compartment->temp_value
+                                /(-calc(algEq->constant, dt, cycle, &reverse_time, 0)
+                                        /calc(algEq->coefficient, dt, cycle, &reverse_time, 0));
+                    }
+                }
+                algEq->target_compartment->temp_value 
+                    = -calc(algEq->constant, dt, cycle, &reverse_time, 0)
+                            /calc(algEq->coefficient, dt, cycle, &reverse_time, 0);
+            }
+        }
+    }
+
+    /* preserve prev_value and prev_k */
+    for(i=0; i<num_of_var_species; i++)
+    {
+        var_sp[i]->prev_val[2] = var_sp[i]->prev_val[1];
+        var_sp[i]->prev_val[1] = var_sp[i]->prev_val[0];
+        var_sp[i]->prev_val[0] = var_sp[i]->value;
+        var_sp[i]->prev_k[2] = var_sp[i]->prev_k[1];
+        var_sp[i]->prev_k[1] = var_sp[i]->prev_k[0];
+        var_sp[i]->prev_k[0] = var_sp[i]->k[0];
+    }
+    for(i=0; i<num_of_var_parameters; i++)
+    {
+        var_param[i]->prev_val[2] = var_param[i]->prev_val[1];
+        var_param[i]->prev_val[1] = var_param[i]->prev_val[0];
+        var_param[i]->prev_val[0] = var_param[i]->value;
+        var_param[i]->prev_k[2] = var_param[i]->prev_k[1];
+        var_param[i]->prev_k[1] = var_param[i]->prev_k[0];
+        var_param[i]->prev_k[0] = var_param[i]->k[0];
+    }
+    for(i=0; i<num_of_var_compartments; i++)
+    {
+        var_comp[i]->prev_val[2] = var_comp[i]->prev_val[1];
+        var_comp[i]->prev_val[1] = var_comp[i]->prev_val[0];
+        var_comp[i]->prev_val[0] = var_comp[i]->value;
+        var_comp[i]->prev_k[2] = var_comp[i]->prev_k[1];
+        var_comp[i]->prev_k[1] = var_comp[i]->prev_k[0];
+        var_comp[i]->prev_k[0] = var_comp[i]->k[0];
+    }
+    for(i=0; i<num_of_var_species_reference; i++)
+    {
+        var_spr[i]->prev_val[2] = var_spr[i]->prev_val[1];
+        var_spr[i]->prev_val[1] = var_spr[i]->prev_val[0];
+        var_spr[i]->prev_val[0] = var_spr[i]->value;
+        var_spr[i]->prev_k[2] = var_spr[i]->prev_k[1];
+        var_spr[i]->prev_k[1] = var_spr[i]->prev_k[0];
+        var_spr[i]->prev_k[0] = var_spr[i]->k[0];
+    }
+    /* forwarding value */
+    forwarding_value(all_var_sp, 
+                    num_of_all_var_species, 
+                    all_var_param, 
+                    num_of_all_var_parameters, 
+                    all_var_comp, 
+                    num_of_all_var_compartments, 
+                    all_var_spr, 
+                    num_of_all_var_species_reference);
+    //}
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  //################### end the cycle here ##########################
+
+  PRG_TRACE(("Simulation for [%s] Ends!\n", Model_getId(m)));
+  if(algEq != NULL){
+      for(i=0; i<algEq->num_of_algebraic_variables; i++){
+          free(coefficient_matrix[i]);
+      }
+      free(coefficient_matrix);
+      free(constant_vector);
+      free(alg_pivot);
+  }
+  free(all_var_sp);
+  free(all_var_param);
+  free(all_var_comp);
+  free(all_var_spr);
+  free(var_sp);
+  free(var_param);
+  free(var_comp);
+  free(var_spr);
+  return result;
+}
+
+
+//simulate explicitf
+
+//simulate implicit
 
 //#################################### CELLULAR FUNCTIONS #############################
 //######################################## PUBLIC #####################################
