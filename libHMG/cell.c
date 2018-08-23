@@ -666,10 +666,34 @@ int initialiseCell(Cell * cellArray,
 
     //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-    //move this to another section --> when to testing the model
-    check_num(num_of_species, num_of_parameters, num_of_compartments, num_of_reactions, &num_of_all_var_species, &num_of_all_var_parameters, &num_of_all_var_compartments, &num_of_all_var_species_reference, &num_of_var_species, &num_of_var_parameters, &num_of_var_compartments, &num_of_var_species_reference, sp, param, comp, re);
+    //TODO: check what this does
+    check_num(cellPopulation.num_of_species, 
+            cellPopulation.num_of_parameters, 
+            cellPopulation.num_of_compartments, 
+            cellPopulation.num_of_reactions, 
+            //&num_of_all_var_species, 
+            //&num_of_all_var_parameters, 
+            //&num_of_all_var_compartments, 
+            //&num_of_all_var_species_reference, 
+            //&num_of_var_species, 
+            //&num_of_var_parameters, 
+            //&num_of_var_compartments, 
+            //&num_of_var_species_reference, 
+            cellPopulation->num_of_all_var_species, 
+            cellPopulation->num_of_all_var_parameters, 
+            cellPopulation->num_of_all_var_compartments, 
+            cellPopulation->num_of_all_var_species_reference, 
+            cellPopulation->num_of_var_species, 
+            cellPopulation->num_of_var_parameters, 
+            cellPopulation->num_of_var_compartments, 
+            cellPopulation->num_of_var_species_reference, 
+            //TODO: determine what are below
+            sp, 
+            param, 
+            comp,
+            cellArray[index].sbml_results);
 
-    /* create objects */
+    // create objects
     cellArray[index].sbml_all_var_sp = 
         (mySpecies**)malloc(sizeof(mySpecies*)*sbml_num_of_all_var_species);
     cellArray[index].sbml_all_var_param = 
@@ -687,49 +711,57 @@ int initialiseCell(Cell * cellArray,
     cellArray[index].sbml_var_spr = 
         (mySpeciesReference**)malloc(sizeof(mySpeciesReference*)*sbml_num_of_var_species_reference);
 
-    create_calc_object_list(num_of_species,
-                            num_of_parameters,
-                            num_of_compartments, 
-                            num_of_reactions, 
-                            all_var_sp, 
-                            all_var_param, 
-                            all_var_comp, 
-                            all_var_spr, 
-                            var_sp, 
-                            var_param, 
-                            var_comp, 
-                            var_spr, 
+    create_calc_object_list(sbml_num_of_species,
+                            sbml_num_of_parameters,
+                            sbml_num_of_compartments, 
+                            sbml_num_of_reactions, 
+                            cellArray[index].sbml_all_var_sp, 
+                            cellArray[index].sbml_all_var_param, 
+                            cellArray[index].sbml_all_var_comp, 
+                            cellArray[index].sbml_all_var_spr, 
+                            cellArray[index].sbml_var_sp, 
+                            cellArray[index].sbml_var_param, 
+                            cellArray[index].sbml_var_comp, 
+                            cellArray[index].sbml_var_spr, 
+                            //TODO: set what is below
                             sp, 
                             param, 
                             comp, 
                             re);
 
-    if(cellArray[index].sbml_algEq!=NULL)
+    SBMLDocument_t* sbml_document;
+    Model_t* sbml_model;
+    int sbml_simulation_method;
+    boolean sbml_use_lazy_method;
+
+
+    if(sbml_algEq!=NULL)
     {
         cellArray[index].sbml_coefficient_matrix = 
-            (double**)malloc(sizeof(double*)*(cellArray[index].sbml_algEq->num_of_algebraic_variables));
-        for(i=0; i<cellArray[index].sbml_algEq->num_of_algebraic_variables; i++)
+            (double**)malloc(sizeof(double*)*(sbml_algEq->num_of_algebraic_variables));
+        for(i=0; i<sbml_algEq->num_of_algebraic_variables; i++)
         {
             coefficient_matrix[i] = 
-                (double*)malloc(sizeof(double)*(cellArray[index].sbml_algEq->num_of_algebraic_variables));
+                (double*)malloc(sizeof(double)*(sbml_algEq->num_of_algebraic_variables));
         }
         cellArray[index].sbml_constant_vector = 
-            (double*)malloc(sizeof(double)*(cellArray[index].sbml_algEq->num_of_algebraic_variables));
+            (double*)malloc(sizeof(double)*(sbml_algEq->num_of_algebraic_variables));
         cellArray[index].sbml_alg_pivot = 
-            (int*)malloc(sizeof(int)*(cellArray[index].sbml_algEq->num_of_algebraic_variables));
+            (int*)malloc(sizeof(int)*(sbml_algEq->num_of_algebraic_variables));
     }
 
     //cycle = 0; <- NEED TO PUT THIS INTO THE cell.h
+    cellArray[index].sbml_cycle = 0;
 
     /* initialize delay_val */
     initialize_delay_val(sp, 
-                        num_of_species, 
+                        sbml_num_of_species, 
                         param, 
-                        num_of_parameters, 
+                        sbml_num_of_parameters, 
                         comp, 
-                        num_of_compartments, 
+                        sbml_num_of_compartments, 
                         re, 
-                        num_of_reactions, 
+                        sbml_num_of_reactions, 
                         sim_time, 
                         dt, 
                         0);

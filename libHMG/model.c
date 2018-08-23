@@ -190,6 +190,7 @@ int setModel(Model * model,
         float * modelGeneLocations,
         int * modelGeneParamsLocations,
         int * modelGeneLRPos,
+        const char* sbml_file,
         float dt)
 {
     //make for a tmp file to write to
@@ -251,58 +252,35 @@ int setModel(Model * model,
     */
 
     //############################ libsbmlsim ##################    
+    
     set_seed(); //sbml model random number generator seed function
-    if(cellArray[index].sbml_document==NULL)
-    {
-        //return create_myResult_with_errorCode(Unknown);
-        //return 1;
-        exit(EXIT_FAILURE);
-    }
-    err_num = SBMLDocument_getNumErrors(cellArray[index].sbml_document);
-    if(err_num>0)
-    {
-        const XMLError_t *err = (const XMLError_t *)SBMLDocument_getError(cellArray[index].sbml_document, 0);
-        if(XMLError_isError(err) || XMLError_isFatal(err))
-        {
-            //here we test openin the SBL file. Problem is that the result of opening is returned in the form
-            //of the SBML results. Thus define a tmp result parameter that is freed, then for every new cell set
-            //model
-            myResult* sbml_results;
-            XMLErrorCode_t errcode = XMLError_getErrorId(err);
-            switch (errcode)
-            {
-                case XMLFileUnreadable:
-                    sbml_results = create_myResult_with_errorCode(FileNotFound);
-                    break;
-                case XMLFileUnwritable:
-                case XMLFileOperationError:
-                case XMLNetworkAccessError:
-                    sbml_results = create_myResult_with_errorCode(SBMLOperationFailed);
-                    break;
-                case InternalXMLParserError:
-                case UnrecognizedXMLParserCode:
-                case XMLTranscoderError:
-                    sbml_results = create_myResult_with_errorCode(InternalParserError);
-                    break;
-                case XMLOutOfMemory:
-                    sbml_results = create_myResult_with_errorCode(OutOfMemory);
-                    break;
-                case XMLUnknownError:
-                    sbml_results = create_myResult_with_errorCode(Unknown);
-                    break;
-                default:
-                    sbml_results = create_myResult_with_errorCode(InvalidSBML);
-                    break;
-            }
-            //send the whole model to be free
-            //SBMLDocument_free(model->cellPopulation->sbml_document);
-            cellArray[index].sbml_results;
-            //return 1;
-            exit(EXIT_FAILURE);
-        }
-    }
-    model->cellPopulation->sbml_model = SBMLDocument_getModel(sbml_document);
-    return 0;
+    openSBMLModel(sbml_file, model->cellPopulation->sbml_model)
+    model->cellPopulation->sbml_simulation_method = 1; //i.e. Runge-Kunta
+    //TODO: test if it is significantly faster if one uses the test.c
+    model->cellPopulation->sbml_use_lazy_method = false; //following the test.c in the example we set this to false
+  
+
+  /* 
+  //for variable stepsize 
+  int err_zero_flag = 0;
+
+  allocated_memory *mem;
+  copied_AST *cp_AST;
+
+  mem = allocated_memory_create();
+  cp_AST = copied_AST_create();
+
+  //Check atol, rtol and facmax, whether it is set to 0.0
+  if (atol == 0.0) {
+    atol = ABSOLUTE_ERROR_TOLERANCE;
+  }
+  if (rtol == 0.0) {
+    rtol = RELATIVE_ERROR_TOLERANCE;
+  }
+  if (facmax == 0.0) {
+    facmax = DEFAULT_FACMAX;
+  }
+  */
 }
 
 /**
@@ -2340,6 +2318,8 @@ int oneTimeStep(Model * model)
 }
 
 
+//############################################## libsbml ##################################################
+
 //This is in case you want to access a single SBML model parameters whilst you are looping through it
         /* print result */
         /*
@@ -2376,6 +2356,10 @@ int oneTimeStep(Model * model)
           }
         }
         */
+
+
+
+
 //##########################################################################################################
 //############################################# MAIN #######################################################
 //##########################################################################################################

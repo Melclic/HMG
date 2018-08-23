@@ -99,8 +99,20 @@ typedef struct CELL_POPULATION
     //int modelGeneParamsLocations[NUM_MODELGENES]; /**< Location of the parameteris in the model (note not species) that describes the copy number of a gene in particular */
     
     //####################### libsbmlsim ##############    
-    SBMLDocument_t* sbml_document;
-    Model_t* sbml_model;
+    
+    //SBMLSIM_EXPORT myResult* simulateSBMLModel(Model_t *m, double sim_time, double dt,
+    //    int print_interval, int print_amount, int method, int use_lazy_method,
+    //        double atol, double rtol, double facmax)
+
+    //create_mySBML_objects(is_variable_step, m, mySp, myParam, myComp, myRe, myRu, myEv,
+    //      myInitAssign, &myAlgEq, &timeVarAssign,
+    //            sim_time, dt, &time, mem, cp_AST, print_interval);
+
+    //rtn = simulate_explicit(m, result, mySp, myParam, myComp, myRe, myRu, myEv,
+    //          myInitAssign, myAlgEq, timeVarAssign, sim_time, dt, print_interval,
+    //                    &time, order, print_amount, mem);
+
+    Model_t* sbml_model; //shared model pointer that will be passed to each cell when taking a step in simulation
     int sbml_simulation_method;
     boolean sbml_use_lazy_method;
  

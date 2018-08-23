@@ -186,12 +186,7 @@ typedef struct CELL
     //double *value_sp_p = result->values_sp;
     //double *value_param_p = result->values_param;
     //double *value_comp_p = result->values_comp;
-    double **sbml_coefficient_matrix; //warning this should be ma
-    double *sbml_constant_vector;
-    int *sbml_alg_pivot;
-    double *sbml_init_val;
-    int *sbml_ode_check;
-
+    
     /* All variables (whose quantity is not a constant) */
     mySpecies **sbml_all_var_sp;           /* all variable species */
     myParameter **sbml_all_var_param;      /* all variable parameters */
@@ -204,6 +199,18 @@ typedef struct CELL
     myCompartment **sbml_var_comp;
     mySpeciesReference **sbml_var_spr;
 
+    double **sbml_coefficient_matrix; //warning this should be ma
+    double *sbml_constant_vector;
+    int *sbml_alg_pivot;
+    double *sbml_init_val;
+    //int *sbml_ode_check; //for simulate_explicitf
+    
+    //Passed to simulate_explicit
+    /*
+     *
+myResult* simulate_explicit(Model_t *m, myResult* result, mySpecies *sp[], myParameter *param[], myCompartment *comp[], myReaction *re[], myRule *rule[], myEvent *event[], myInitialAssignment *initAssign[], myAlgebraicEquations *algEq, timeVariantAssignments *timeVarAssign, double sim_time, double dt, int print_interval, double *time, int order, int print_amount, allocated_memory *mem){
+     *
+     */
 } Cell;
 
 int constructCell(Cell * cellArray, int index);

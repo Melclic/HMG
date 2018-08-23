@@ -199,3 +199,78 @@ int growCells(CellPopulation * cellPopulation, float dt, float volumeAdd, bool i
 }
 
 //TODO: add a clean cells functions to make cleaning of the model easier
+
+int constructCellPopulation(CellPopulation * cellPopulation)
+//int setSBML(CellPopulation * cellPopulation)
+{ 
+    //Here we set the parameters of the model that are shared between each member of the cell population.
+    //That is each should have the same model
+    // num of SBase objects
+    cellPopulation.num_of_species = Model_getNumSpecies(cellPopulation.sbml_model);
+    cellPopulation.num_of_parameters = Model_getNumParameters(cellPopulation.sbml_model);
+    cellPopulation.num_of_compartments = Model_getNumCompartments(cellPopulation.sbml_model);
+    cellPopulation.num_of_reactions = Model_getNumReactions(cellPopulation.sbml_model);
+    cellPopulation.num_of_rules = Model_getNumRules(cellPopulation.sbml_model);
+    cellPopulation.num_of_events = Model_getNumEvents(cellPopulation.sbml_model);
+    cellPopulation.num_of_initialAssignments = Model_getNumInitialAssignments(cellPopulation.sbml_model);
+
+
+
+    
+}
+
+
+/*
+ * List all the error codes here
+ */
+int openSBMLModel(const char* file, Model_t* sbml_model)
+{ 
+    SBMLDocument_t* sbml_document = readSBMLFromFile(file);
+    if(sbml_document==NULL)
+    {
+        return create_myResult_with_errorCode(Unknown);
+    }
+    unsigned int err_num = SBMLDocument_getNumErrors(sbml_document);
+    if(err_num>0)
+    {
+        const XMLError_t *err = (const XMLError_t *)SBMLDocument_getError(d, 0);
+        if (XMLError_isError(err) || XMLError_isFatal(err))
+        {
+            XMLErrorCode_t errcode = XMLError_getErrorId(err);
+            switch(errcode)
+            {
+                case XMLFileUnreadable:
+                    return 1;
+                    //rtn = create_myResult_with_errorCode(FileNotFound);
+                    //break;
+                case XMLFileUnwritable:
+                case XMLFileOperationError:
+                case XMLNetworkAccessError:
+                    return 2;
+                    //rtn = create_myResult_with_errorCode(SBMLOperationFailed);
+                    //break;
+                case InternalXMLParserError:
+                case UnrecognizedXMLParserCode:
+                case XMLTranscoderError:
+                    return 3;
+                    //rtn = create_myResult_with_errorCode(InternalParserError);
+                    //break;
+                case XMLOutOfMemory:
+                    return 4;
+                    //rtn = create_myResult_with_errorCode(OutOfMemory);
+                    //break;
+                case XMLUnknownError:
+                    return 5;
+                    //rtn = create_myResult_with_errorCode(Unknown);
+                    //break;
+                default:
+                    return 6;
+                    //rtn = create_myResult_with_errorCode(InvalidSBML);
+                    //break;
+            }
+            //TODO: move to another place
+            //SBMLDocument_free(sbml_document);
+        }
+    }
+    sbml_model = SBMLDocument_getModel(sbml_document);
+}
