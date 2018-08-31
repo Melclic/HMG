@@ -100,42 +100,26 @@ typedef struct CELL_POPULATION
     
     //####################### libsbmlsim ##############    
     
-    //SBMLSIM_EXPORT myResult* simulateSBMLModel(Model_t *m, double sim_time, double dt,
-    //    int print_interval, int print_amount, int method, int use_lazy_method,
-    //        double atol, double rtol, double facmax)
-
-    //create_mySBML_objects(is_variable_step, m, mySp, myParam, myComp, myRe, myRu, myEv,
-    //      myInitAssign, &myAlgEq, &timeVarAssign,
-    //            sim_time, dt, &time, mem, cp_AST, print_interval);
-
-    //rtn = simulate_explicit(m, result, mySp, myParam, myComp, myRe, myRu, myEv,
-    //          myInitAssign, myAlgEq, timeVarAssign, sim_time, dt, print_interval,
-    //                    &time, order, print_amount, mem);
-
-    Model_t* sbml_model; //shared model pointer that will be passed to each cell when taking a step in simulation
-    int sbml_simulation_method;
+    SBMLDocument_t* sbml_document;
+    Model_t* sbml_model; /**< shared model pointer that will be passed to each cell when taking a step in simulation */
     boolean sbml_use_lazy_method;
- 
-    /* num of variables whose quantity is not a constant */
-    unsigned int sbml_num_of_all_var_species;
-    unsigned int sbml_num_of_all_var_parameters;
-    unsigned int sbml_num_of_all_var_compartments;
-    unsigned int sbml_num_of_all_var_species_reference;
+    int sbml_method;
+    int sbml_is_explicit;
+    int sbml_order;
 
-    /* num of SBase objects */
-    unsigned int sbml_num_of_species;
-    unsigned int sbml_num_of_parameters;
-    unsigned int sbml_num_of_compartments;
-    unsigned int sbml_num_of_reactions;
-    unsigned int sbml_num_of_rules;
-    unsigned int sbml_num_of_events;
-    unsigned int sbml_num_of_initialAssignments;
+    //we assume that these may be shared with other models since they are characteristics of the model
+    mySpecies **sbml_species;
+    myParameter **sbml_parameters;
+    myCompartment **sbml_compartments;
+    myReaction **sbml_reactions;
+    myRule **sbml_rules;
+    myEvent **sbml_events;
+    myInitialAssignment **sbml_initialAssignement;
+    myAlgebraicEquations *sbml_algebraicEquations;
+    timeVariantAssignments *sbml_timeVarAssign;
  
-    /* num of variables (which is NOT changed by assignment nor algebraic rule) */
-    unsigned int sbml_num_of_var_species;
-    unsigned int sbml_num_of_var_parameters;
-    unsigned int sbml_num_of_var_compartments;
-    unsigned int sbml_num_of_var_species_reference;
+    allocated_memory *sbml_mem;
+    copied_AST *sbml_cp_AST;
     
 } CellPopulation;
 

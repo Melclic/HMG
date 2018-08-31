@@ -198,79 +198,308 @@ int growCells(CellPopulation * cellPopulation, float dt, float volumeAdd, bool i
     return 0;
 }
 
-//TODO: add a clean cells functions to make cleaning of the model easier
 
-int constructCellPopulation(CellPopulation * cellPopulation)
-//int setSBML(CellPopulation * cellPopulation)
-{ 
-    //Here we set the parameters of the model that are shared between each member of the cell population.
-    //That is each should have the same model
-    // num of SBase objects
-    cellPopulation.num_of_species = Model_getNumSpecies(cellPopulation.sbml_model);
-    cellPopulation.num_of_parameters = Model_getNumParameters(cellPopulation.sbml_model);
-    cellPopulation.num_of_compartments = Model_getNumCompartments(cellPopulation.sbml_model);
-    cellPopulation.num_of_reactions = Model_getNumReactions(cellPopulation.sbml_model);
-    cellPopulation.num_of_rules = Model_getNumRules(cellPopulation.sbml_model);
-    cellPopulation.num_of_events = Model_getNumEvents(cellPopulation.sbml_model);
-    cellPopulation.num_of_initialAssignments = Model_getNumInitialAssignments(cellPopulation.sbml_model);
+/**
+* @brief Initialise all cells in cellArray and initiate the first cell
+*
+* Initiated all the cells in cellArray and flag them as being dead. Loop through the first set of cells and initiate the first cells, numCells, in the array (set as 1 at the moment). All cells are intitiated to have an age of 0.
+* TODO: instead of directly accessing the cell.h function, pass through the cellPopulation.h
+*
+* @param model Model object
+* @return Error handling integer
+*/
+int initCellPopulation(CellPopulation *cellPopulation)
+{
+    int i;
+    for(i=0; i<cellPopulation->maxCells; i++)
+    {
+        constructCell(cellPopulation->cellArray, i);
+    }
 
-
-
-    
+    for(i=0; i<cellPopulation->numCells; i++)
+    {
+        //if the input C time is input in minutes
+        //TODO: add error handling from the initialiseCell
+        if(cellPopulation->C2==-1.0)
+        {
+            initialiseCell(cellPopulation->cellArray,
+                    i,
+                    cellPopulation->tau,
+                    cellPopulation->C1,
+                    6646.0*cellPopulation->C1/4639221.0, //This is based on the size of the ColE1 in base pairs against the size of the chromosome in base pairs for a bacterial chromosome
+                    cellPopulation->cNoise,
+                    cellPopulation->D1,
+                    cellPopulation->dNoise,
+                    cellPopulation->Vi,
+                    cellPopulation->Vi_plasmid,
+                    cellPopulation->ViNoise,
+                    cellPopulation->Vi/2.0, //TODO: why is this /2 ????
+                    cellPopulation->VaNoise,
+                    cellPopulation->modelInitialSpecies,
+                    cellPopulation->modelInitialParams,
+                    0.0);
+        }
+        //if the input C time is in its functional form
+        else
+        {
+            initialiseCell(cellPopulation->cellArray,
+                    i,
+                    cellPopulation->tau,
+                    cellPopulation->C1*(1.0+(cellPopulation->C2*exp(-cellPopulation->C3/(cellPopulation->tau/60.0)))),
+                    //TODO change this so that it is not specific to ColE1 and is valid for minichromosomes and other plasmids
+                    6646.0*(cellPopulation->C1*(1.0+(cellPopulation->C2*exp(-cellPopulation->C3/(cellPopulation->tau/60.0)))))/4639221.0, //This is based on the size of the ColE1 in base pairs against the size of the chromosome in base pairs for a bacterial chromosome
+                    cellPopulation->cNoise,
+                    cellPopulation->D1*(1.0+(cellPopulation->D2*exp(-cellPopulation->D3/(cellPopulation->tau/60.0)))),
+                    cellPopulation->dNoise,
+                    cellPopulation->Vi,
+                    cellPopulation->Vi_plasmid,
+                    cellPopulation->ViNoise,
+                    cellPopulation->Vi/2.0,
+                    cellPopulation->VaNoise,
+                    cellPopulation->modelInitialSpecies,
+                    cellPopulation->modelInitialParams,
+                    0.0);
+        }
+    }
+    return 0;
 }
 
+//TODO: add a clean cells functions to make cleaning of the model easier
+int setCellPopulation(cellPopulation* cellPopulation 
+                    float tau, 
+                    float cNoise, 
+                    float dNoise, 
+                    float Vi, 
+                    float Vi_plasmid, 
+                    float ViNoise, 
+                    float VaNoise, 
+                    float chanceInit, 
+                    float divNoise, 
+                    float divRatio, 
+                    float partRatio, 
+                    float partNoise,
+                    float chromDeg, 
+                    float repForkDeg, 
+                    float C1,
+                    float C2,
+                    float C3,
+                    float D1,
+                    float D2,
+                    float D3)
+{
+    //TODO: kind of stupid, should be able to tell him how many cells i want to inoculate with random number
+    cellPopulation->numCells = 1;
+    cellPopulation->freeIndex = 1;
+    cellPopulation->indexArray = 1;
+    cellPopulation->tau = tau;
+    cellPopulation->C1 = C1;
+    cellPopulation->C2 = C2;
+    cellPopulation->C3 = C3;
+    cellPopulation->D1 = D1;
+    cellPopulation->D2 = D2;
+    cellPopulation->D3 = D3;
+    cellPopulation->dNoise = dNoise;
+    cellPopulation->cNoise = cNoise;
+    cellPopulation->Vi = Vi;
+    cellPopulation->Vi_plasmid = Vi_plasmid;
+    cellPopulation->ViNoise = ViNoise;
+    cellPopulation->VaNoise = VaNoise;
+    cellPopulation->chanceInit = chanceInit;
+    cellPopulation->divNoise = divNoise;
+    cellPopulation->divRatio = divRatio;
+    cellPopulation->partNoise = partNoise;
+    cellPopulation->partRatio = partRatio;   
+    cellPopulation->chromDeg = chromDeg;
+    cellPopulation->repForkDeg = repForkDeg; 
+    cellPopulation->numFrozenCells = 0;  
+    return 0;
+}
 
-/*
- * List all the error codes here
- */
-int openSBMLModel(const char* file, Model_t* sbml_model)
+int setSBMLmodel(CellPopulation * cellPopulation, const char* sbml_file)
 { 
-    SBMLDocument_t* sbml_document = readSBMLFromFile(file);
-    if(sbml_document==NULL)
+    cellPopulation->method = MTHD_RUNGE_KUTTA;
+    cellPopulation->boolean use_lazy_method = false;
+    cellPopulation->print_interval = 1;
+    cellPopulation->print_amount = 0;
+    cellPopulation->atol = ABSOLUTE_ERROR_TOLERANCE;
+    cellPopulation->rtol = RELATIVE_ERROR_TOLERANCE;
+    cellPopulation->facmax = DEFAULT_FACMAX;
+	
+	cellPopulation->sbml_mem = allocated_memory_create();
+	cellPopulation->sbml_cp_AST = copied_AST_create();
+
+    cellPopulation->sbml_document = readSBMLFromFile(sbml_file);
+    if(cellPopulation->sbml_document==NULL)
     {
-        return create_myResult_with_errorCode(Unknown);
+        //return create_myResult_with_errorCode(Unknown);
+        return 1;
     }
-    unsigned int err_num = SBMLDocument_getNumErrors(sbml_document);
+    unsigned int err_num = SBMLDocument_getNumErrors(cellPopulation->sbml_document);
+    printf("err_num: %d\n", err_num);
     if(err_num>0)
     {
-        const XMLError_t *err = (const XMLError_t *)SBMLDocument_getError(d, 0);
-        if (XMLError_isError(err) || XMLError_isFatal(err))
+        const XMLError_t *err = (const XMLError_t *)SBMLDocument_getError(cellPopulation->sbml_document, 0);
+        if(XMLError_isError(err) || XMLError_isFatal(err))
         {
             XMLErrorCode_t errcode = XMLError_getErrorId(err);
             switch(errcode)
             {
                 case XMLFileUnreadable:
-                    return 1;
-                    //rtn = create_myResult_with_errorCode(FileNotFound);
-                    //break;
+                    //myResult rtn = create_myResult_with_errorCode(FileNotFound);
+                    break;
                 case XMLFileUnwritable:
                 case XMLFileOperationError:
                 case XMLNetworkAccessError:
-                    return 2;
-                    //rtn = create_myResult_with_errorCode(SBMLOperationFailed);
-                    //break;
+                    //myResult rtn = create_myResult_with_errorCode(SBMLOperationFailed);
+                    break;
                 case InternalXMLParserError:
                 case UnrecognizedXMLParserCode:
                 case XMLTranscoderError:
-                    return 3;
-                    //rtn = create_myResult_with_errorCode(InternalParserError);
-                    //break;
+                    //myResult rtn = create_myResult_with_errorCode(InternalParserError);
+                    break;
                 case XMLOutOfMemory:
-                    return 4;
-                    //rtn = create_myResult_with_errorCode(OutOfMemory);
-                    //break;
+                    //myResult rtn = create_myResult_with_errorCode(OutOfMemory);
+                    break;
                 case XMLUnknownError:
-                    return 5;
-                    //rtn = create_myResult_with_errorCode(Unknown);
-                    //break;
+                    //myResult rtn = create_myResult_with_errorCode(Unknown);
+                    break;
                 default:
-                    return 6;
-                    //rtn = create_myResult_with_errorCode(InvalidSBML);
-                    //break;
-            }
-            //TODO: move to another place
-            //SBMLDocument_free(sbml_document);
+                    //myResult rtn = create_myResult_with_errorCode(InvalidSBML);
+                    break;
+            } 
+            SBMLDocument_free(cellPopulation->sbml_document);
+            return 1;
         }
     }
-    sbml_model = SBMLDocument_getModel(sbml_document);
+
+    cellPopulation->sbml_model = SBMLDocument_getModel(sbml_document);
+    cellPopulation->sbml_species = (mySpecies**)malloc(sizeof(mySpecies*) * Model_getNumSpecies(cellPopulation->sbml_model));
+    cellPopulation->sbml_parameters = (myParameter**)malloc(sizeof(myParameter*) * Model_getNumParameters(cellPopulation->sbml_model));
+    cellPopulation->sbml_compartments = (myCompartment**)malloc(sizeof(mySpecies*) * Model_getNumCompartments(cellPopulation->sbml_model));
+    cellPopulation->sbml_reactions = (myReaction**)malloc(sizeof(myReaction*) * Model_getNumReactions(cellPopulation->sbml_model));
+    cellPopulation->sbml_rules = (myRule**)malloc(sizeof(myRule*) * Model_getNumRules(cellPopulation->sbml_model));
+    cellPopulation->sbml_events = (myEvent**)malloc(sizeof(myEvent*) * Model_getNumEvents(cellPopulation->sbml_model));
+    cellPopulation->sbml_initialAssignement = (myInitialAssignment**)malloc(sizeof(myInitialAssignment*) * Model_getNumInitialAssignments(cellPopulation->sbml_model));
+	cellPopulation->sbml_algebraicEquations = NULL;
+
+    /*
+    char *method_name;
+    switch(method) {
+    case MTHD_RUNGE_KUTTA: //  Runge-Kutta 
+      method_name = MTHD_NAME_RUNGE_KUTTA;
+      break;
+    case MTHD_BACKWARD_EULER: //  Backward-Euler 
+      method_name = MTHD_NAME_BACKWARD_EULER;
+      break;
+    case MTHD_CRANK_NICOLSON: //  Crank-Nicolson (Adams-Moulton 2) 
+      method_name = MTHD_NAME_CRANK_NICOLSON;
+      break;
+    case MTHD_ADAMS_MOULTON_3: //  Adams-Moulton 3 
+      method_name = MTHD_NAME_ADAMS_MOULTON_3;
+      break;
+    case MTHD_ADAMS_MOULTON_4: //  Adams-Moulton 4 
+      method_name = MTHD_NAME_ADAMS_MOULTON_4;
+      break;
+    case MTHD_BACKWARD_DIFFERENCE_2: //  Backward-Difference 2 
+      method_name = MTHD_NAME_BACKWARD_DIFFERENCE_2;
+      break;
+    case MTHD_BACKWARD_DIFFERENCE_3: //  Backward-Difference 3 
+      method_name = MTHD_NAME_BACKWARD_DIFFERENCE_3;
+      break;
+    case MTHD_BACKWARD_DIFFERENCE_4: //  Backward-Difference 4 
+      method_name = MTHD_NAME_BACKWARD_DIFFERENCE_4;
+      break;
+    case MTHD_EULER: //  Euler (Adams-Bashforth) 
+      method_name = MTHD_NAME_EULER;
+      break;
+    case MTHD_ADAMS_BASHFORTH_2: //  Adams-Bashforth 2 
+      method_name = MTHD_NAME_ADAMS_BASHFORTH_2;
+      break;
+    case MTHD_ADAMS_BASHFORTH_3: //  Adams-Bashforth 3 
+      method_name = MTHD_NAME_ADAMS_BASHFORTH_3;
+      break;
+    case MTHD_ADAMS_BASHFORTH_4: //  Adams-Bashforth 4 
+      method_name = MTHD_NAME_ADAMS_BASHFORTH_4;
+      break;
+    // Variable Step Size 
+    case MTHD_RUNGE_KUTTA_FEHLBERG_5: //  Runge-Kutta-Fehlberg 
+      method_name = MTHD_NAME_RUNGE_KUTTA_FEHLBERG_5;
+      is_variable_step = true;
+      break;
+    case MTHD_CASH_KARP: //  Cash-Karp
+      method_name = MTHD_NAME_CASH_KARP;
+      is_variable_step = true;
+      break;
+    default:
+      cellPopulation->method = MTHD_RUNGE_KUTTA;
+      method_name = MTHD_NAME_RUNGE_KUTTA;
+      break;
+    }
+    */
+    cellPopulation->sbml_order = cellPopulation->method / 10;
+    cellPopulation->sbml_is_explicit = cellPopulation->method % 10;
+    //question remains as to the position of this parameter? Should it be here
+    //  --> might be better to put this inside the cell so we can modify it
+	int tmp_time = 0; //useless parameter that is used to set the sbml object 
+    create_mySBML_objects(false, 
+							cellPopulation->sbml_model, 
+							cellPopulation->sbml_species, 
+							cellPopulation->sbml_parameters, 
+							cellPopulation->sbml_compartments, 
+							cellPopulation->sbml_reactions,
+							cellPopulation->sbml_rules, 
+							cellPopulation->sbml_events,
+      						cellPopulation->sbml_initialAssignement, 
+							cellPopulation->sbml_algebraicEquations,
+							cellPopulation->sbml_timeVarAssign,
+      						dt, 
+							dt,
+							&tmp_time, 
+							cellPopulation->sbml_mem,
+							cellPopulation->cp_AST,
+							1);
 }
+
+
+int cleanCellPopulation(CellPopulation *cellPopulation)
+{
+    //fclose(f); close the file
+    for(int i=0; i<cellPopulation->maxCells; i++)
+    {
+        //gsl_odeiv2_driver_free(cellPopulation->cellArray[i].driver);
+        constructCell(cellPopulation->cellArray, i);
+    }   
+    free(cellPopulation->cellArray);
+    cellPopulation->cellArray = NULL;
+
+    cellPopulation->maxCells = 0;    
+    cellPopulation->numCells = 0;    
+    cellPopulation->indexArray = 0;
+    cellPopulation->freeIndex = 0;   
+    cellPopulation->Vi = 0.0;    
+    cellPopulation->Vi_plasmid = 0.0;    
+    cellPopulation->cNoise = 0.0;    
+    cellPopulation->dNoise = 0.0;    
+    cellPopulation->ViNoise = 0.0;   
+    cellPopulation->VaNoise = 0.0;   
+    cellPopulation->chanceInit = 0.0;    
+    cellPopulation->divNoise = 0.0;  
+    cellPopulation->divRatio = 0.0;
+    cellPopulation->partRatio = 0.0;
+    cellPopulation->partNoise = 0.0;
+    cellPopulation->chromDeg = 0.0;
+    cellPopulation->repForkDeg = 0.0;    
+    cellPopulation->numFrozenCells = 0;  
+    cellPopulation->numAnucleateCells = 0;
+
+    cellPopulation->C1 = 0.0;
+    cellPopulation->C2 = 0.0;
+    cellPopulation->C3 = 0.0;
+    cellPopulation->D1 = 0.0;
+    cellPopulation->D2 = 0.0;
+    cellPopulation->D3 = 0.0;
+
+    free(cellPopulation->totalVolumes);
+    cellPopulation->lenTotalV = 0;
+}
+

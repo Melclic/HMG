@@ -49,6 +49,8 @@ typedef struct MODEL
     float t; /**< Current time of the simulation*/
     int stop; /**< Boolean controlling if to terminate the simulation*/
     CellPopulation * cellPopulation; /**< Struct of population*/
+
+
 } Model;
 
 //####### GETTERS ##########

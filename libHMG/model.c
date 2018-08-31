@@ -35,11 +35,11 @@
 #include <time.h>
 #include <stdbool.h>
 
-#include "cell.h"
+//#include "cell.h"
 #include "cellPopulation.h"
 #include "model.h"
 #include "utility.h"
-#include "inputModel.h"
+// GSL #include "inputModel.h"
 
 #include "../libsbmlsim/libsbmlsim.h"
 
@@ -125,6 +125,9 @@ Model * initModel(int maxCells)
         exit(EXIT_FAILURE);
     }
 
+    //This is the libsbmlsim seed setter
+    set_seed();
+
     return model;
 }
 
@@ -185,11 +188,14 @@ int setModel(Model * model,
         float D1,
         float D2,
         float D3,
+        /*
+        //GSL
         double * modelInitialParams,
         double * modelInitialSpecies,
         float * modelGeneLocations,
         int * modelGeneParamsLocations,
         int * modelGeneLRPos,
+        */
         const char* sbml_file,
         float dt)
 {
@@ -210,7 +216,11 @@ int setModel(Model * model,
     model->t = 0.0;
     model->stop = 0;
     
+    setCellPopulation(model->cellPopulation);
+    setSBMLmodel(model->cellPopulation);
+    initCellPopulation(model->cellPopulation);
     //TODO: kind of stupid, should be able to tell him how many cells i want to inoculate with random number
+    /*
     model->cellPopulation->numCells = 1;
     model->cellPopulation->freeIndex = 1;
     model->cellPopulation->indexArray = 1;
@@ -235,6 +245,7 @@ int setModel(Model * model,
     model->cellPopulation->chromDeg = chromDeg;
     model->cellPopulation->repForkDeg = repForkDeg; 
     model->cellPopulation->numFrozenCells = 0;  
+    */
 
     //########################## GSL ######################
 
@@ -251,101 +262,6 @@ int setModel(Model * model,
     memcpy(model->cellPopulation->modelGeneLRPos, modelGeneLRPos, sizeof(int)*(NUM_MODELGENES+1));
     */
 
-    //############################ libsbmlsim ##################    
-    
-    set_seed(); //sbml model random number generator seed function
-    openSBMLModel(sbml_file, model->cellPopulation->sbml_model)
-    model->cellPopulation->sbml_simulation_method = 1; //i.e. Runge-Kunta
-    //TODO: test if it is significantly faster if one uses the test.c
-    model->cellPopulation->sbml_use_lazy_method = false; //following the test.c in the example we set this to false
-  
-
-  /* 
-  //for variable stepsize 
-  int err_zero_flag = 0;
-
-  allocated_memory *mem;
-  copied_AST *cp_AST;
-
-  mem = allocated_memory_create();
-  cp_AST = copied_AST_create();
-
-  //Check atol, rtol and facmax, whether it is set to 0.0
-  if (atol == 0.0) {
-    atol = ABSOLUTE_ERROR_TOLERANCE;
-  }
-  if (rtol == 0.0) {
-    rtol = RELATIVE_ERROR_TOLERANCE;
-  }
-  if (facmax == 0.0) {
-    facmax = DEFAULT_FACMAX;
-  }
-  */
-}
-
-/**
-* @brief Initialise all cells in cellArray and initiate the first cell
-*
-* Initiated all the cells in cellArray and flag them as being dead. Loop through the first set of cells and initiate the first cells, numCells, in the array (set as 1 at the moment). All cells are intitiated to have an age of 0.
-* TODO: instead of directly accessing the cell.h function, pass through the cellPopulation.h
-*
-* @param model Model object
-* @return Error handling integer
-*/
-int inoculateModel(Model * model)
-{
-    int i;
-    for(i=0; i<model->cellPopulation->maxCells; i++)
-    {
-        constructCell(model->cellPopulation->cellArray, i);
-    }
-
-    for(i=0; i<model->cellPopulation->numCells; i++)
-    {
-        //if the input C time is input in minutes
-        //TODO: add error handling from the initialiseCell
-        if(model->cellPopulation->C2==-1.0)
-        {
-            initialiseCell(model->cellPopulation->cellArray,
-                    i,
-                    model->cellPopulation->tau,
-                    model->cellPopulation->C1,
-                    6646.0*model->cellPopulation->C1/4639221.0, //This is based on the size of the ColE1 in base pairs against the size of the chromosome in base pairs for a bacterial chromosome
-                    model->cellPopulation->cNoise,
-                    model->cellPopulation->D1,
-                    model->cellPopulation->dNoise,
-                    model->cellPopulation->Vi,
-                    model->cellPopulation->Vi_plasmid,
-                    model->cellPopulation->ViNoise,
-                    model->cellPopulation->Vi/2.0, //TODO: why is this /2 ????
-                    model->cellPopulation->VaNoise,
-                    model->cellPopulation->modelInitialSpecies,
-                    model->cellPopulation->modelInitialParams,
-                    0.0);
-        }
-        //if the input C time is in its functional form
-        else
-        {
-            initialiseCell(model->cellPopulation->cellArray,
-                    i,
-                    model->cellPopulation->tau,
-                    model->cellPopulation->C1*(1.0+(model->cellPopulation->C2*exp(-model->cellPopulation->C3/(model->cellPopulation->tau/60.0)))),
-                    //TODO change this so that it is not specific to ColE1 and is valid for minichromosomes and other plasmids
-                    6646.0*(model->cellPopulation->C1*(1.0+(model->cellPopulation->C2*exp(-model->cellPopulation->C3/(model->cellPopulation->tau/60.0)))))/4639221.0, //This is based on the size of the ColE1 in base pairs against the size of the chromosome in base pairs for a bacterial chromosome
-                    model->cellPopulation->cNoise,
-                    model->cellPopulation->D1*(1.0+(model->cellPopulation->D2*exp(-model->cellPopulation->D3/(model->cellPopulation->tau/60.0)))),
-                    model->cellPopulation->dNoise,
-                    model->cellPopulation->Vi,
-                    model->cellPopulation->Vi_plasmid,
-                    model->cellPopulation->ViNoise,
-                    model->cellPopulation->Vi/2.0,
-                    model->cellPopulation->VaNoise,
-                    model->cellPopulation->modelInitialSpecies,
-                    model->cellPopulation->modelInitialParams,
-                    0.0);
-        }
-    }
-    return 0;
 }
 
 /**
@@ -358,45 +274,7 @@ int inoculateModel(Model * model)
 */
 int cleanModel(Model * model)
 {
-    //fclose(f); close the file
-    for(int i=0; i<model->cellPopulation->maxCells; i++)
-    {
-        //gsl_odeiv2_driver_free(model->cellPopulation->cellArray[i].driver);
-        constructCell(model->cellPopulation->cellArray, i);
-    }   
-    free(model->cellPopulation->cellArray);
-    model->cellPopulation->cellArray = NULL;
-
-    model->cellPopulation->maxCells = 0;    
-    model->cellPopulation->numCells = 0;    
-    model->cellPopulation->indexArray = 0;
-    model->cellPopulation->freeIndex = 0;   
-    model->cellPopulation->Vi = 0.0;    
-    model->cellPopulation->Vi_plasmid = 0.0;    
-    model->cellPopulation->cNoise = 0.0;    
-    model->cellPopulation->dNoise = 0.0;    
-    model->cellPopulation->ViNoise = 0.0;   
-    model->cellPopulation->VaNoise = 0.0;   
-    model->cellPopulation->chanceInit = 0.0;    
-    model->cellPopulation->divNoise = 0.0;  
-    model->cellPopulation->divRatio = 0.0;
-    model->cellPopulation->partRatio = 0.0;
-    model->cellPopulation->partNoise = 0.0;
-    model->cellPopulation->chromDeg = 0.0;
-    model->cellPopulation->repForkDeg = 0.0;    
-    model->cellPopulation->numFrozenCells = 0;  
-    model->cellPopulation->numAnucleateCells = 0;
-
-    model->cellPopulation->C1 = 0.0;
-    model->cellPopulation->C2 = 0.0;
-    model->cellPopulation->C3 = 0.0;
-    model->cellPopulation->D1 = 0.0;
-    model->cellPopulation->D2 = 0.0;
-    model->cellPopulation->D3 = 0.0;
-
-    free(model->cellPopulation->totalVolumes);
-    model->cellPopulation->lenTotalV = 0;
-
+    cleanCellPopulation(model->cellPopulation);
     //GSL ODE model parameters
     /*
     model->cellPopulation->numModelParams = 0;
@@ -405,13 +283,6 @@ int cleanModel(Model * model)
     */
 
     //libsbmlsim 
-	SBMLDocument_free(model->cellPopulation->sbml_document);
-    Model_t* sbml_model;
-	free_mySBML_objects(model->cellPopulation->sbml_model, mySp, myParam, myComp, myRe, myRu, myEv,
-        myInitAssign, myAlgEq, timeVarAssign, mem, cp_AST);
-
-    model->cellPopulation->sbml_simulation_method = 0;
-    model->cellPopulation->sbml_use_lazy_method = false;  
 
     //model.h
     model->dt = 0.0;
