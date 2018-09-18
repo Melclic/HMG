@@ -11,7 +11,7 @@ For a more detailed explanation of the particularities of this agent based (or i
 
 Or to the following thesis:
 
-TO BE ADDED
+[Modelling and simulation of heterogeneous growth dynamics in bacterial populations using a novel multiphasic growth method](http://wrap.warwick.ac.uk/100879/)
 
 Although the paper and thesis have very particular research purposes, the core model may be used for other purposes, since it mainly follows the classic CH model as described in:
 
