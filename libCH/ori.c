@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <stdio.h>
+#include <ctype.h>
 
 //Remember that k and l relate to the number of termination and oriC only at ai
 //Assumes exponential growth
@@ -128,4 +129,67 @@ double * cell_parameters(double tau, double C, double D, double a)
         ret[5] = (double)terC;
 
         return ret;
+}
+
+//this is for testing only
+/*
+int main(int argc, const char* argv[])
+{
+	double * out = cell_parameters(60.0, 40.0, 20.0, 0.5);
+	printf("Volume: %f\n", out[0]);
+	printf("G0: %f\n", out[1]);
+	printf("Ga: %f\n", out[2]);
+	printf("segregation_timer: %f\n", out[3]);
+	printf("oriC: %f\n", out[4]);
+	printf("terC: %f\n", out[5]);
+}
+*/
+
+//example of wrttign to file for CWL testing
+//DOES NOT WORK
+int main(int argc, const char* argv[])
+{
+	FILE * fp = fopen("result.csv", "w");
+	fprintf(fp, "volume,G0,Ga,segregation_timer,oriC,terC\n");
+	if(argc==9)
+	{
+		double in_tau;
+		double in_C;
+		double in_D;
+		double in_a;
+		for(int i=1; i<argc-1; i++)
+		{
+			if(argv[i]=="-c")
+			{
+				in_C = atof(argv[i+1]);
+			}
+			else if(argv[i]=="-d")
+			{
+				in_D = atof(argv[i+1]);
+			}
+			else if(argv[i]=="--tau")
+			{
+				in_tau = atof(argv[i+1]);
+			}
+			else if(argv[i]=="-a")
+			{
+				in_a = atof(argv[i+1]);
+			}
+			else
+			{
+				printf("Unrecognised input: %p", argv[i]);
+			}
+		}
+		double * out = cell_parameters(in_tau, in_C, in_D, in_a);	
+		fprintf(fp, "%f,%f,%f,%f,%f,%f\n", out[0], out[1], out[2], out[3], out[4], out[5]);
+		fclose(fp);
+		return 1;
+	}
+	else
+	{
+		printf("There are too many or too few arguments passed (%d)\n", argc);
+		fprintf(fp, "-1.0,-1.0,-1.0,-1.0,-1.0,-1.0\n");
+		fclose(fp);
+		return 0;
+	}
 }
