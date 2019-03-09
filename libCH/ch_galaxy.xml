@@ -1,19 +1,21 @@
 <tool id="CH" name="Cooper-Helmstetter cell cycle" version="1.0">
   <description>Tool that calculates cell volume, segregation timer, DNA content for a cell given a doubling time, replication time and segregation time in minutes</description>
+	<!--
   <requirements>
     <container type="docker">ibibsa/CH</container>
   </requirements>
+	-->
   <command><![CDATA[
-    python cooperHelmstetter_local.py -t '$tau' -a '$cellAge' -c '$C' -d '$D' 
+		python '$__tool_directory__/cooperHelmstetter_local.py' -t '$tau' -a '$cellAge' -c '$C' -d '$D' -o '$out_csv' 
   ]]></command>
   <inputs>
-    <param name="tau" type="float" label="Cell doubling time (minutes)" />
-    <param name="cellAge" type="float" label="Cell age" />
-    <param name="C" type="float" label="Cell replication time (minutes)" />
-    <param name="D" type="float" label="Cell segregation time (minutes)" />
+    <param name="tau" type="float" value="27.0" label="Cell doubling time" />
+    <param name="cellAge" type="float" value="0.5" label="Cell age" />
+    <param name="C" type="float" value="40.0" label="Cell replication time" />
+    <param name="D" type="float" value="20.0" label="Cell segregation time" />
   </inputs>
   <outputs>
-    <data name="results" format="csv" />
+    <data name="out_csv" format="csv" label="Output csv with the results" />
   </outputs>
   <tests>
     <test>
@@ -21,7 +23,7 @@
       <param name="age" value="0.5" />
       <param name="C" value="40.0" />
       <param name="D" value="20.0" />
-      <output name="results" value="test/" />
+      <output name="out_csv" value="results.csv" />
     </test>
   </tests>
   <help><![CDATA[
@@ -41,5 +43,4 @@
     }
     </citation>
   </citations>
-
 </tool>
