@@ -12,8 +12,8 @@ COPY . /home/restCH
 #				--> should be frozen from a working version of the code
 RUN apk update
 RUN apk add build-base
-RUN pip install flask
-RUN pip install flask-restful
+#RUN pip install flask
+#RUN pip install flask-restful
 #should have conda 
 
 #This is for testing that the docker does not actually have root access
@@ -26,11 +26,23 @@ USER restCH
 RUN gcc -shared -o cooperHelmstetter.so -fPIC ori.c -lm
 
 #Make the docker
-EXPOSE 5000
+#EXPOSE 5000
 
 #run the python script for the webservice
 #NOTE this should be a bash executable file that contains permision
 #ENTRYPOINT ["python"]
 
+#RUN chown -R $(whoami) /usr/local/bin
+
+# add smalt tools to /usr/bin so they're on the PATH
+#RUN ln -s cooperHelmstetter_local.py /usr/bin
+#RUN ln -s /tool/smalt_wrapper.py /usr/bin
+
+# make smalt_wrapper executable
+#RUN chmod a+x cooperHelmstetter_local.py
+
 #CMD ["python", "cooperHelmstetter_local.py"]
-CMD ["python", "cooperHelmstetter_flask.py"]
+#CMD ["python", "cooperHelmstetter_flask.py"]
+#CMD ["/bin/bash"]
+
+#ENTRYPOINT ["sh"]
