@@ -2,10 +2,8 @@
 FROM python:3.6-alpine
 
 #add a user (maybe send the command to create a group and add that user to the group)
-RUN adduser -D restCH
+#RUN adduser -D restCH
 
-WORKDIR /home/restCH
-COPY . /home/restCH
 
 #install some of the required packages
 #alternatively can have all the files installed in a requirements.txt file
@@ -20,10 +18,18 @@ RUN apk add build-base
 #CMD ["cat", "/tmp/secrets.txt"]
 
 #at this point all the files are still root. This makes sure that the permission granted to the whole files in the container are webCH user
-RUN chown -R restCH:restCH ./
-USER restCH
+#RUN chown -R restCH:restCH ./
+#USER restCH
 
+WORKDIR /home/ch
+COPY . /home/ch
 RUN gcc -shared -o cooperHelmstetter.so -fPIC ori.c -lm
+
+### This simplifies the call to the docker as the scripts are stored in the bin
+RUN cp cooperHelmstetter.so /usr/bin/
+RUN cp cooperHelmstetter_local.py /usr/bin/
+RUN chmod a+x /usr/bin/cooperHelmstetter_local.py
+RUN chmod a+x /usr/bin/cooperHelmstetter.so
 
 #Make the docker
 #EXPOSE 5000

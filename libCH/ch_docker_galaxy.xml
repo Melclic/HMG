@@ -1,11 +1,11 @@
 <tool id="CH_docker" name="Cooper-Helmstetter cell cycle (docker)" version="1.0">
   <description>Tool that calculates cell volume, segregation timer, DNA content for a cell given a doubling time, replication time and segregation time in minutes</description>
   <requirements>
-    <container type="docker">ibibsa/ch:latest</container>
+    <container type="docker">ibisba/ch:latest</container>
   </requirements>
-  <command><![CDATA[
-      python '$__tool_directory__/cooperHelmstetter_local.py' -t '$tau' -a '$cellAge' -c '$C' -d '$D' -o '$out_csv' 
-  ]]></command>
+  <command>
+    cooperHelmstetter_local.py -t $tau -a $cellAge -c $C -d $D -o $out_csv
+  </command>
   <inputs>
     <param name="tau" type="float" value="27.0" label="Cell doubling time" />
     <param name="cellAge" type="float" value="0.5" label="Cell age" />
@@ -21,12 +21,12 @@
       <param name="cellAge" value="0.5" />
       <param name="C" value="40.0" />
       <param name="D" value="20.0" />
-      <output name="out_csv" value="results.csv" />
+      <output name="out_csv" value="test/results.csv" />
     </test>
   </tests>
-  <help><![CDATA[
+  <help>
     Test the execution of this small piece of code using Galaxy
-  ]]></help>
+  </help>
   <citations>
     <citation type="bibtex">
       @article{du2016predicting,

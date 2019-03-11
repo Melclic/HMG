@@ -1985,7 +1985,7 @@ int runInjection(Model * model,
 			return 1;
 		}
 		//printf("\r##### numCells: %d #####", model->cellPopulation->numCells);
-		printf("\r##### numCells: %d (%.2f) #####", model->cellPopulation->numCells, (float)model->t);
+		//printf("\r##### numCells: %d (%.2f) #####", model->cellPopulation->numCells, (float)model->t);
 		/*
 		//PRINT
                 fprintf(f, "%f,", model->t);
@@ -2163,7 +2163,7 @@ int runExpo(Model * model, float maximalExecTime, int targetCellCount)
 		}
 		//printf("\r##### numCells: %d #####", model->cellPopulation->numCells);
 		//printf("\r##### simTime: %.2f #####", (float)model->t);
-		printf("\r##### numCells: %d (%.2f) #####", model->cellPopulation->numCells, (float)model->t);
+		//printf("\r##### numCells: %d (%.2f) #####", model->cellPopulation->numCells, (float)model->t);
 		/*
 		//PRINT
                 fprintf(f, "%f,", model->t);
