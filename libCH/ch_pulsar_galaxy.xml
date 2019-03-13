@@ -1,0 +1,41 @@
+<tool id="CH_Pulsar" name="Cooper-Helmstetter cell cycle" version="1.0">
+  <description>Tool that calculates cell volume, segregation timer, DNA content for a cell given a doubling time, replication time and segregation time in minutes</description>
+  <command><![CDATA[
+	python '$__tool_directory__/cooperHelmstetter_local.py' -t '$tau' -a '$cellAge' -c '$C' -d '$D' -o '$out_csv' 
+  ]]></command>
+  <inputs>
+    <param name="tau" type="float" value="27.0" label="Cell doubling time" />
+    <param name="cellAge" type="float" value="0.5" label="Cell age" />
+    <param name="C" type="float" value="40.0" label="Cell replication time" />
+    <param name="D" type="float" value="20.0" label="Cell segregation time" />
+  </inputs>
+  <outputs>
+    <data name="out_csv" format="csv" label="Output csv with the results" />
+  </outputs>
+  <tests>
+    <test>
+      <param name="tau" value="27.0" />
+      <param name="age" value="0.5" />
+      <param name="C" value="40.0" />
+      <param name="D" value="20.0" />
+      <output name="out_csv" value="results.csv" />
+    </test>
+  </tests>
+  <help><![CDATA[
+    Test the execution of this small piece of code using Galaxy
+  ]]></help>
+  <citations>
+    <citation type="bibtex">
+      @article{du2016predicting,
+      title={Predicting the Dynamics and Heterogeneity of Genomic DNA Content within Bacterial Populations across Variable Growth Regimes},
+      author={Du Lac, Melchior and Scarpelli, Andrew H and Younger, Andrew KD and Bates, Declan G and Leonard, Joshua N},
+      journal={ACS synthetic biology},
+      volume={6},
+      number={7},
+      pages={1131--1139},
+      year={2016},
+      publisher={ACS Publications}
+    }
+    </citation>
+  </citations>
+</tool>
