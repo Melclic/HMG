@@ -1,29 +1,26 @@
-<tool id="CH_remote" name="Cooper-Helmstetter cell cycle" version="1.0">
+<tool id="CH_docker_infile" name="Cooper-Helmstetter cell cycle (docker + input file)" version="1.0">
   <description>Tool that calculates cell volume, segregation timer, DNA content for a cell given a doubling time, replication time and segregation time in minutes</description>
-  <command><![CDATA[
-    python '$__tool_directory__/cooperHelmstetter_local.py' -t '$tau' -a '$cellAge' -c '$C' -d '$D' -o '$out_csv' 
-  ]]></command>
+  <requirements>
+    <container type="docker">ibisba/ch:latest</container>
+  </requirements>
+  <command>
+    cooperHelmstetter_local_inFile.py -i $in_csv -o $out_csv
+  </command>
   <inputs>
-    <param name="tau" type="float" value="27.0" label="Cell doubling time" />
-    <param name="cellAge" type="float" value="0.5" label="Cell age" />
-    <param name="C" type="float" value="40.0" label="Cell replication time" />
-    <param name="D" type="float" value="20.0" label="Cell segregation time" />
+    <param name="in_csv" type="data" format="csv" label="Input csv file" />
   </inputs>
   <outputs>
     <data name="out_csv" format="csv" label="Output csv with the results" />
   </outputs>
   <tests>
     <test>
-      <param name="tau" value="27.0" />
-      <param name="age" value="0.5" />
-      <param name="C" value="40.0" />
-      <param name="D" value="20.0" />
-      <output name="out_csv" value="results.csv" />
+      <param name="in_csv" value="test/in.csv" />
+      <output name="out_csv" value="test/results.csv" />
     </test>
   </tests>
-  <help><![CDATA[
+  <help>
     Test the execution of this small piece of code using Galaxy
-  ]]></help>
+  </help>
   <citations>
     <citation type="bibtex">
       @article{du2016predicting,

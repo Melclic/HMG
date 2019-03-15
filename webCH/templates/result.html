@@ -1,0 +1,23 @@
+<html>
+   <body>
+     <div>
+      <table border=1, style="float: left">
+	{% for key, value in inp.items() %}
+            <tr>
+               <th> {{ key }} </th>
+               <td> {{ value }} </td>
+            </tr>       
+	{% endfor %}
+      </table>
+
+      <table border = 1, style="float: left">
+	{% for key, value in result.items() %}
+            <tr>
+               <th> {{ key }} </th>
+               <td> {{ value }} </td>
+            </tr>       
+	{% endfor %}
+      </table>
+      </div>
+   </body>
+</html>

@@ -1,6 +1,9 @@
+## GALAXY LOCAL TOOL
 
+- Add the $__tool_directory__ to the xml calling the tool
+- chmod 755 cooperHelmstetter.py
 
-## GALAXY TOOL
+## GALAXY DOCKER
 
 1) build the image using the DockerFile
 
@@ -12,7 +15,6 @@
     <tool file="/home/mdulac/workspace/HMG/libCH/ch_docker_galaxy.xml" />
   </section>
 
-## GALAXY DOCKER
 
 1) Added to tool xml:
 

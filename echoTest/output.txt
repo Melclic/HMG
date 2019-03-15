@@ -1,0 +1,2 @@
+"volume","G0","Ga","segregation_timer","oriC","terC"
+1.0057929410678534,1.0,1.0125,0.0,2.0,1.0

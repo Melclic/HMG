@@ -27,8 +27,10 @@ RUN gcc -shared -o cooperHelmstetter.so -fPIC ori.c -lm
 
 ### This simplifies the call to the docker as the scripts are stored in the bin
 RUN cp cooperHelmstetter.so /usr/bin/
-RUN cp cooperHelmstetter_local.py /usr/bin/
-RUN chmod a+x /usr/bin/cooperHelmstetter_local.py
+#RUN cp cooperHelmstetter_local.py /usr/bin/
+RUN cp cooperHelmstetter_local_inFile.py /usr/bin/
+#RUN chmod a+x /usr/bin/cooperHelmstetter_local.py
+RUN chmod a+x /usr/bin/cooperHelmstetter_local_inFile.py
 RUN chmod a+x /usr/bin/cooperHelmstetter.so
 
 #Make the docker

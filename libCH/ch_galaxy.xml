@@ -1,13 +1,8 @@
 <tool id="CH" name="Cooper-Helmstetter cell cycle" version="1.0">
   <description>Tool that calculates cell volume, segregation timer, DNA content for a cell given a doubling time, replication time and segregation time in minutes</description>
-	<!--
-  <requirements>
-    <container type="docker">ibibsa/CH</container>
-  </requirements>
-	-->
-  <command><![CDATA[
-		python '$__tool_directory__/cooperHelmstetter_local.py' -t '$tau' -a '$cellAge' -c '$C' -d '$D' -o '$out_csv' 
-  ]]></command>
+  <command>
+    '$__tool_directory__/cooperHelmstetter_local.py' -t '$tau' -a '$cellAge' -c '$C' -d '$D' -o '$out_csv' 
+  </command>
   <inputs>
     <param name="tau" type="float" value="27.0" label="Cell doubling time" />
     <param name="cellAge" type="float" value="0.5" label="Cell age" />
