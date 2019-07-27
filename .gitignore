@@ -1,0 +1,4 @@
+*.swp
+/libHMG/*.swp
+/libCH/*.swp
+.ipynb_checkpoints/
