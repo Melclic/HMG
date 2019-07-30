@@ -13,7 +13,7 @@
 //results: array of size 6 to return the results
 int cell_parameters(double tau, double C, double D, double a, double *results)
 {
-	double segregation_timer = 0.0;
+        double segregation_timer = 0.0;
         double l = floor(D/tau);
         double k = floor((C+D)/tau);   
         //calculate the age of the cell in minutes according to the doubling rate
